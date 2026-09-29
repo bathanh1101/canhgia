@@ -1,0 +1,13 @@
+# Web admin conventions (built by phase 07; 08/09 must follow)
+
+- Every admin page/action/route handler: `const { supabase, adminId, email } = await requireAdmin()` from `@/lib/admin/require-admin`; pages `export const dynamic = "force-dynamic"`. Layouts do not re-run on client nav → pages guard themselves.
+- Shell: `src/app/admin/layout.tsx` (sidebar/header/Toaster) for all `/admin/*` except login/mfa; depends on `x-pathname` from `src/proxy.ts`. Do not edit either. Nav items: `src/lib/admin/nav.ts`.
+- Server actions return `ActionResult<T>` (`@/lib/admin/action-result`: `ok(message?, data?)`, `fail(err)` maps `{message: code}` → Vietnamese), then `revalidatePath`. Client: `notifyResult(result)` from `components/admin-kit/notify-result`.
+- Helpers: `@/lib/errors/error-messages` (`errorMessage`, `ERROR_MESSAGES`), `@/lib/format` (`formatVnd, formatBps, formatDate, formatDateTime`), `@/lib/admin/pagination` (`parsePagination(searchParams)` → `{page,size,from,to}` for `.range()`, `pageCount, pageWindow, withPage`), `@/lib/admin/status` (`statusView`).
+- Admin-kit `@/components/admin-kit/*`: `PageHeader({title, description?, actions?})`, `StatCard({label, value, hint?, icon?})`, `DataTable<T>({columns, rows, rowKey, emptyTitle?, emptyDescription?})`, `Pagination({total, page, size, searchParams, basePath?})`, `FilterBar({searchParams, merchants?, statuses?, dateRange?, search?, resetHref})` (GET form fields `q, merchant, status, from, to`), `StatusBadge({status})`, `ConfirmDialog({trigger, title, description?, confirmLabel?, destructive?, onConfirm: () => Promise<ActionResult>})`, `EmptyState`, `ErrorState`.
+- UI primitives `@/components/ui/*`: button, card, badge, input (+ Select native, Textarea, Label), table, dialog, tabs, checkbox, skeleton, sonner (`toast`, `Toaster`); `cn` from `@/lib/utils`; theme tokens in `globals.css` (`bg-primary`, `text-text-muted`, `bg-danger-tint`…).
+- Supabase: `createServerSupabase()` / `createBrowserSupabase()`; types `src/lib/supabase/database.types.ts` (`pnpm --filter web gen:types`, `SUPABASE_DB_URL` override).
+- Installed deps (never edit manifests): recharts 3, exceljs, qrcode, zod 4, sonner, lucide-react, radix-ui; dev `@playwright/test`, otpauth.
+- Placeholders owned by 08/09: `src/app/admin/{overview,orders,cashback-rules,withdrawals,users,complaints}/page.tsx`.
+- `landing_stats` setting shape: `{rating?: number, users?: string, refunded?: string} | null` (malformed = hidden). Admin settings UI must write this shape.
+- Admin reads `admin_orders` / `admin_withdrawals` views (full rows); user tables have column-level grants (see backend-contracts.md).

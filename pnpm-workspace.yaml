@@ -1,3 +1,5 @@
 packages:
   - apps/web
   - apps/extension
+allowBuilds:
+  unrs-resolver: false
