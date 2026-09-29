@@ -9,7 +9,7 @@ final unreadNotificationsProvider = FutureProvider<int>((ref) async {
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return 0;
   ref.listen(realtimeEventsProvider, (_, e) {
-    if (e.value == 'notifications' || e.value == RealtimeService.resync) ref.invalidateSelf();
+    if (e.value?.kind == 'notifications' || e.value?.kind == RealtimeService.resync) ref.invalidateSelf();
   });
   return ref.watch(supabaseProvider).from('notifications').count().eq('user_id', uid).isFilter('read_at', null);
 });

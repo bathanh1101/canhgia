@@ -13,7 +13,7 @@ final ledgerProvider = FutureProvider.autoDispose.family<List<LedgerEntry>, int>
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return const [];
   ref.listen(realtimeEventsProvider, (_, e) {
-    if (e.value == 'orders' || e.value == 'withdrawals' || e.value == RealtimeService.resync) ref.invalidateSelf();
+    if (e.value?.kind == 'orders' || e.value?.kind == 'withdrawals' || e.value?.kind == RealtimeService.resync) ref.invalidateSelf();
   });
   return ref.watch(ledgerRepositoryProvider).list(uid, limit: limit);
 });

@@ -40,7 +40,7 @@ void main() {
         walletProvider.overrideWith((_) => Stream.value(const Wallet(availableVnd: 1250000, pendingVnd: 320000, heldVnd: 0, totalEarnedVnd: 0))),
         unreadNotificationsProvider.overrideWith((_) async => 3),
         merchantsProvider.overrideWith((_) async => [shopee, traveloka]),
-        realtimeEventsProvider.overrideWith((_) => const Stream<String>.empty()),
+        realtimeEventsProvider.overrideWith((_) => const Stream<RealtimeEvent>.empty()),
         homeVouchersProvider.overrideWith((_) async => [const Voucher(id: 1, merchantId: 'shopee', discountText: 'Giảm 15% tối đa 80K')]),
         currentUserIdProvider.overrideWithValue(null),
         linkRepositoryProvider.overrideWithValue(links),

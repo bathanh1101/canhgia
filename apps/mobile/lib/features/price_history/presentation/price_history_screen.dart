@@ -109,8 +109,8 @@ class _PriceHistoryScreenState extends ConsumerState<PriceHistoryScreen> {
           const SizedBox(height: 4),
           Text(
             watch == null
-                ? 'Báo khi giá thực trả dưới mức bạn chọn (đã tính hoàn tiền).'
-                : 'Đang báo khi giá thực trả dưới ${formatVnd(watch.targetPriceVnd)}.',
+                ? 'Báo khi giá bán thấp nhất dưới mức bạn chọn (chưa trừ hoàn tiền).'
+                : 'Đang báo khi giá bán dưới ${formatVnd(watch.targetPriceVnd)}.',
             style: AppText.body,
           ),
           const SizedBox(height: 12),

@@ -41,6 +41,7 @@ class ReferralCard extends ConsumerWidget {
 
   Future<void> _bind(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+    final repo = ref.read(rewardsRepositoryProvider); // read before awaiting: `ref` is unusable once the card is gone
     final ctrl = TextEditingController();
     final entered = await showDialog<String>(
       context: context,
@@ -56,7 +57,7 @@ class ReferralCard extends ConsumerWidget {
     ctrl.dispose();
     if (entered == null || entered.isEmpty) return;
     try {
-      await ref.read(rewardsRepositoryProvider).bindReferral(entered);
+      await repo.bindReferral(entered);
       messenger.showSnackBar(const SnackBar(content: Text('Đã áp dụng mã giới thiệu.')));
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(bindReferralMessage(e))));
@@ -79,8 +80,8 @@ class ReferralCard extends ConsumerWidget {
           decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(12)),
           child: Row(children: [
             Expanded(child: Text(code, style: AppText.h2.merge(white).copyWith(letterSpacing: 2))),
-            IconButton(tooltip: 'Sao chép', onPressed: () => _copy(context), icon: const Icon(Icons.copy, color: Colors.white)),
-            IconButton(tooltip: 'Chia sẻ', onPressed: () => _share(context), icon: const Icon(Icons.share, color: Colors.white)),
+            IconButton(tooltip: 'Sao chép', onPressed: code.isEmpty ? null : () => _copy(context), icon: const Icon(Icons.copy, color: Colors.white)),
+            IconButton(tooltip: 'Chia sẻ', onPressed: code.isEmpty ? null : () => _share(context), icon: const Icon(Icons.share, color: Colors.white)),
           ]),
         ),
         const SizedBox(height: 8),

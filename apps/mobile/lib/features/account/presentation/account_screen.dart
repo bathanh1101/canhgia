@@ -29,10 +29,12 @@ class AccountScreen extends ConsumerWidget {
       } on Object catch (e) {
         debugPrint('vault disable failed: $e');
       }
+      if (!context.mounted) return;
       ref.invalidate(biometricStateProvider);
     }
-    if (context.mounted) await context.push(RoutePaths.pinFor(hasPin ? 'change' : 'create'));
-    ref.invalidate(biometricStateProvider);
+    if (!context.mounted) return;
+    await context.push(RoutePaths.pinFor(hasPin ? 'change' : 'create'));
+    if (context.mounted) ref.invalidate(biometricStateProvider);
   }
 
   @override

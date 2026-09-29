@@ -101,7 +101,7 @@ class _SearchResultsScreenState extends ConsumerState<SearchResultsScreen> {
       return AppButton(
         label: 'Tải thêm thất bại · Thử lại',
         kind: AppButtonKind.outline,
-        onPressed: ref.read(searchResultsProvider(widget.args).notifier).loadMore,
+        onPressed: () => ref.read(searchResultsProvider(widget.args).notifier).loadMore(retry: true),
       );
     }
     return Padding(

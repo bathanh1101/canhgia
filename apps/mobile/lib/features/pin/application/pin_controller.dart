@@ -47,7 +47,7 @@ class PinController extends Notifier<PinState> {
     if (state.busy || _locked || args.mode != PinMode.verify || args.returnPin) return;
     final vault = ref.read(biometricPinVaultProvider);
     final pin = await vault.readPinWithBiometric();
-    if (pin == null) return;
+    if (pin == null || !ref.mounted) return;
     await _verify(pin, fromBiometric: true);
   }
 
@@ -80,6 +80,7 @@ class PinController extends Notifier<PinState> {
     state = state.copyWith(busy: true, digits: pin, message: null);
     try {
       final r = await _repo.verify(pin);
+      if (!ref.mounted) return;
       if (r.ok) {
         if (args.mode == PinMode.change) {
           _oldToken = r.pinToken;
@@ -90,6 +91,7 @@ class PinController extends Notifier<PinState> {
         return;
       }
       if (fromBiometric) await _dropVault();
+      if (!ref.mounted) return;
       final locked = r.lockedUntil;
       state = state.copyWith(
         busy: false,
@@ -119,11 +121,21 @@ class PinController extends Notifier<PinState> {
     try {
       await _repo.setPin(pin, pinToken: _oldToken);
       await _dropVault(); // PIN changed: any vaulted copy is stale
+      if (!ref.mounted) return;
       state = state.copyWith(busy: false, result: 'ok');
     } on Object catch (e) {
+      if (!ref.mounted) return;
       final f = AppFailure.from(e);
       if (f.code == 'pin_invalid' && f.detail['reason'] == 'otp_required') {
         state = state.copyWith(busy: false, needsOtp: true);
+        return;
+      }
+      if (f.code == 'pin_invalid' && _oldToken != null) {
+        // The 60 s single-use token from the current-PIN step expired/was consumed: verify again.
+        _oldToken = null;
+        _firstEntry = null;
+        state = state.copyWith(
+            busy: false, phase: PinPhase.old, digits: '', message: 'Phiên xác thực đã hết hạn, nhập lại PIN hiện tại.');
         return;
       }
       _fail(e);
@@ -131,6 +143,7 @@ class PinController extends Notifier<PinState> {
   }
 
   void _fail(Object e) {
+    if (!ref.mounted) return;
     final f = AppFailure.from(e);
     final until = DateTime.tryParse('${f.detail['locked_until'] ?? ''}');
     final notSet = f.code == 'pin_invalid' && f.detail['reason'] == 'not_set';

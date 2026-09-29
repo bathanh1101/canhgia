@@ -35,7 +35,7 @@ class TierCard extends StatelessWidget {
         ]),
         const SizedBox(height: 8),
         Text(
-          next == null ? 'Bạn đang ở hạng cao nhất' : 'Còn ${formatVnd(progress.remainingVnd)} để lên ${next.name}',
+          next == null ? 'Bạn đang ở hạng cao nhất' : 'Còn ước tính ${formatVnd(progress.remainingVnd)} để lên ${next.name}',
           style: AppText.h2.copyWith(fontSize: 17),
         ),
         const SizedBox(height: 8),

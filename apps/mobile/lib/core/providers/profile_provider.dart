@@ -9,7 +9,7 @@ final profileProvider = FutureProvider<Profile?>((ref) async {
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return null;
   ref.listen(realtimeEventsProvider, (_, e) {
-    if (e.value == RealtimeService.resync) ref.invalidateSelf();
+    if (e.value?.kind == RealtimeService.resync) ref.invalidateSelf();
   });
   final row = await ref.watch(supabaseProvider).from('profiles').select().eq('id', uid).maybeSingle();
   return row == null ? null : Profile.fromJson(row);

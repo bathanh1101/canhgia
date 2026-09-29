@@ -22,7 +22,7 @@ class NotificationSettingsScreen extends ConsumerWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(accountRepositoryProvider).updateProfile(notificationPrefs: {...prefs, key: on});
-      ref.invalidate(profileProvider);
+      if (context.mounted) ref.invalidate(profileProvider);
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(mapErrorMessage(e))));
     }

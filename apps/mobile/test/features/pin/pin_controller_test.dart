@@ -226,6 +226,26 @@ void main() {
       expect(c.read(pinControllerProvider(change)).result, isNull);
       verifyNever(() => vault.disable());
     });
+
+    test('expired old-PIN token restarts at the current-PIN step, then a retry succeeds with a fresh token', () async {
+      var n = 0;
+      when(() => repo.verify('111111')).thenAnswer((_) async => ok('tok-${++n}'));
+      when(() => repo.setPin('222222', pinToken: 'tok-1')).thenThrow(const AppFailure('pin_invalid'));
+      when(() => repo.setPin('222222', pinToken: 'tok-2')).thenAnswer((_) async {});
+      final c = make(change);
+      await type(c, change, '111111');
+      await type(c, change, '222222');
+      await type(c, change, '222222');
+      var st = c.read(pinControllerProvider(change));
+      expect(st.phase, PinPhase.old);
+      expect(st.result, isNull);
+      expect(st.message, contains('hết hạn'));
+      await type(c, change, '111111');
+      await type(c, change, '222222');
+      await type(c, change, '222222');
+      expect(c.read(pinControllerProvider(change)).result, 'ok');
+      verify(() => repo.setPin('222222', pinToken: 'tok-2')).called(1);
+    });
   });
 
   test('pin_state helpers', () {

@@ -24,7 +24,7 @@ final checkinsThisWeekProvider = FutureProvider.autoDispose<List<Checkin>>((ref)
 final missionsProvider = FutureProvider.autoDispose<List<Mission>>((ref) async {
   if (ref.watch(currentUserIdProvider) == null) return const [];
   ref.listen(realtimeEventsProvider, (_, e) {
-    if (e.value == 'orders' || e.value == RealtimeService.resync) ref.invalidateSelf();
+    if (e.value?.kind == 'orders' || e.value?.kind == RealtimeService.resync) ref.invalidateSelf();
   });
   return ref.watch(rewardsRepositoryProvider).missions();
 });

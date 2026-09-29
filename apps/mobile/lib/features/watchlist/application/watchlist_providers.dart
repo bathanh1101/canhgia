@@ -2,16 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/auth_session_provider.dart';
 import '../../../core/supabase/supabase_providers.dart';
-import '../../compare/application/compare_providers.dart';
-import '../../compare/data/compare_repository.dart';
 import '../../price_history/application/price_history_providers.dart';
 import '../../price_history/data/price_history_repository.dart';
 import '../data/watchlist_repository.dart';
 
 final watchlistRepositoryProvider = Provider<WatchlistRepository>((ref) => WatchlistRepository(ref.watch(supabaseProvider)));
 
-/// Watch row + current price. [currentVnd] = cheapest effective price (after cashback) when the group is
-/// comparable, else the cheapest listed price; null when the group has no priced offer.
+/// Watch row + current price. [currentVnd] = cheapest listed price (before cashback); null when the group has no priced offer.
 class WatchEntry {
   const WatchEntry({required this.item, this.info, this.currentVnd});
   final WatchItem item;
@@ -31,26 +28,14 @@ final watchItemProvider = FutureProvider.family<WatchItem?, String>((ref, groupI
   return uid == null || id == null ? null : ref.watch(watchlistRepositoryProvider).find(uid, id);
 });
 
+/// One list query + one batched offers query (no per-item RPC). [WatchEntry.currentVnd] is the raw cheapest
+/// listed price, the same number `evaluate_price_alerts` compares with the target.
 final watchlistProvider = FutureProvider<List<WatchEntry>>((ref) async {
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return const [];
   final items = await ref.watch(watchlistRepositoryProvider).list(uid);
   final infos = await ref.watch(priceHistoryRepositoryProvider).groupInfos([for (final i in items) i.groupId]);
-  final compare = ref.watch(compareRepositoryProvider);
-  return Future.wait([
-    for (final i in items)
-      () async {
-        final info = infos[i.groupId];
-        var offers = const <CompareOffer>[];
-        try {
-          offers = await compare.compare(i.groupId);
-        } on Object {
-          // Comparison is an enhancement: fall back to the cheapest listed price.
-        }
-        final best = cheapestOffer(offers);
-        return WatchEntry(item: i, info: info, currentVnd: best?.effectivePriceVnd ?? info?.priceVnd);
-      }(),
-  ]);
+  return [for (final i in items) WatchEntry(item: i, info: infos[i.groupId], currentVnd: infos[i.groupId]?.priceVnd)];
 });
 
 /// Writes that keep list + per-group providers in sync.

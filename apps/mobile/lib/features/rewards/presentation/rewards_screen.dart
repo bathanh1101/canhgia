@@ -38,10 +38,12 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> {
     setState(() => _busy = true);
     try {
       final msg = await action();
-      ref
-        ..invalidate(profileProvider)
-        ..invalidate(checkinsThisWeekProvider)
-        ..invalidate(missionsProvider);
+      if (mounted) {
+        ref
+          ..invalidate(profileProvider)
+          ..invalidate(checkinsThisWeekProvider)
+          ..invalidate(missionsProvider);
+      }
       messenger.showSnackBar(SnackBar(content: Text(msg)));
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(mapErrorMessage(e))));

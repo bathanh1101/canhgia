@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,12 +29,13 @@ class LinkCreatedScreen extends ConsumerWidget {
   Future<void> _buy(BuildContext context, WidgetRef ref, CreatedLink l) async {
     final uri = safeExternalUri(l.affLink);
     if (uri == null) return _toast(context, errorMessagesVi['unknown']!);
+    final launch = ref.read(externalLauncherProvider);
     try {
-      if (!await ref.read(externalLauncherProvider)(uri)) throw const AppFailure('unknown');
+      if (!await launch(uri)) throw const AppFailure('unknown');
     } on Object catch (e) {
       // Universal link may fail to open the app: fall back to the short link.
       final fallback = l.shortLink == null ? null : safeExternalUri(l.shortLink!);
-      if (fallback != null && await ref.read(externalLauncherProvider)(fallback)) return;
+      if (fallback != null && await launch(fallback)) return;
       if (context.mounted) _toast(context, mapErrorMessage(e));
     }
   }
@@ -46,11 +46,18 @@ class LinkCreatedScreen extends ConsumerWidget {
   }
 
   Future<void> _share(BuildContext context, WidgetRef ref, CreatedLink l) async {
+    final share = ref.read(shareTextProvider);
+    final repo = ref.read(linkRepositoryProvider);
     try {
-      await ref.read(shareTextProvider)(l.shareUrl);
-      await ref.read(linkRepositoryProvider).recordShare(l.clickId);
+      await share(l.shareUrl);
     } on Object catch (e) {
       if (context.mounted) _toast(context, mapErrorMessage(e));
+      return;
+    }
+    try {
+      await repo.recordShare(l.clickId); // analytics only: a failure must not look like a failed share
+    } on Object {
+      // ignored on purpose
     }
   }
 

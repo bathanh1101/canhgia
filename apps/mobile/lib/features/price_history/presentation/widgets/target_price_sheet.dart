@@ -12,7 +12,7 @@ int? parseVndInput(String raw) {
   return v == null || v <= 0 || v > _maxTargetVnd ? null : v;
 }
 
-/// Bottom sheet asking for the alert target (giá thực trả). Returns the VND target, or null if dismissed.
+/// Bottom sheet asking for the alert target (giá bán, chưa trừ hoàn tiền). Returns the VND target, or null if dismissed.
 Future<int?> showTargetPriceSheet(BuildContext context, {required int initial}) => showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -48,7 +48,7 @@ class _TargetSheetState extends State<_TargetSheet> {
   Widget build(BuildContext context) => Padding(
         padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.of(context).viewInsets.bottom),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Báo khi giá thực trả dưới', style: AppText.title),
+          Text('Báo khi giá bán dưới', style: AppText.title),
           const SizedBox(height: 4),
           Text('Nhận thông báo đẩy khi bất kỳ sàn nào đạt mức giá này (đã tính hoàn tiền).', style: AppText.caption),
           const SizedBox(height: 12),

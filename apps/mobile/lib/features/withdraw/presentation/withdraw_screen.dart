@@ -36,6 +36,7 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
 
   String? _amountError(int available, PublicSettings s) {
     final amount = ref.read(withdrawFormProvider).amount;
+    // Watched in build(), so the value is loaded (and kept fresh) by the time this runs.
     final recent = ref.read(withdrawalsProvider).value;
     return validateWithdrawAmount(
       amount: amount,
@@ -70,12 +71,13 @@ class _WithdrawScreenState extends ConsumerState<WithdrawScreen> {
   @override
   Widget build(BuildContext context) {
     final form = ref.watch(withdrawFormProvider);
+    ref.watch(withdrawalsProvider); // keep alive: `_amountError` needs the daily-cap history
     final settings = ref.watch(publicSettingsProvider).value ?? const PublicSettings();
     final accounts = ref.watch(bankAccountsProvider);
     if (form.result != null) {
       return Scaffold(
         appBar: const AppTopBar(title: 'Rút tiền'),
-        body: WithdrawResultView(result: form.result!, amount: form.amount, eta: settings.etaText),
+        body: WithdrawResultView(result: form.result!, amount: form.resultAmount ?? form.amount, eta: settings.etaText),
       );
     }
     final available = ref.watch(walletProvider).value?.availableVnd ?? 0;

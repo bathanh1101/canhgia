@@ -123,7 +123,7 @@ class CreatedLink {
   final String? imageUrl;
 
   /// Link to copy/share: short link when the backend gave one.
-  String get shareUrl => shortLink ?? affLink;
+  String get shareUrl => (shortLink?.isNotEmpty ?? false) ? shortLink! : affLink;
 
   Duration get activationWindow => Duration(hours: activationHours);
 

@@ -27,21 +27,27 @@ class RecentSearches extends Notifier<List<String>> {
 final recentSearchesProvider = NotifierProvider<RecentSearches, List<String>>(RecentSearches.new);
 
 /// Top 5 hits for the typed text (callers debounce); < 2 chars -> nothing.
-final searchSuggestionsProvider = FutureProvider.family<List<OfferHit>, String>((ref, q) async {
-  if (q.trim().length < 2) return const [];
-  return ref.watch(searchRepositoryProvider).search((q: q.trim(), merchant: '', sort: 'relevance'), limit: 5);
+final searchSuggestionsProvider = FutureProvider.autoDispose.family<List<OfferHit>, String>((ref, q) async {
+  final text = q.trim();
+  if (text.length < 2) return const [];
+  final capped = text.length > 100 ? text.substring(0, 100) : text;
+  return ref.watch(searchRepositoryProvider).search((q: capped, merchant: '', sort: 'relevance'), limit: 5);
 });
 
 class PagedOffers {
-  const PagedOffers({this.items = const [], this.hasMore = true, this.loadingMore = false, this.loadMoreFailed = false});
+  const PagedOffers({this.items = const [], this.fetched = 0, this.hasMore = true, this.loadingMore = false, this.loadMoreFailed = false});
 
   final List<OfferHit> items;
+
+  /// Rows received from the server so far: the next page offset (independent of de-duplication).
+  final int fetched;
   final bool hasMore;
   final bool loadingMore;
   final bool loadMoreFailed;
 
-  PagedOffers copyWith({List<OfferHit>? items, bool? hasMore, bool? loadingMore, bool? loadMoreFailed}) => PagedOffers(
+  PagedOffers copyWith({List<OfferHit>? items, int? fetched, bool? hasMore, bool? loadingMore, bool? loadMoreFailed}) => PagedOffers(
         items: items ?? this.items,
+        fetched: fetched ?? this.fetched,
         hasMore: hasMore ?? this.hasMore,
         loadingMore: loadingMore ?? this.loadingMore,
         loadMoreFailed: loadMoreFailed ?? this.loadMoreFailed,
@@ -50,7 +56,11 @@ class PagedOffers {
   /// Appends [page] (dropping offers already shown); a short page means the end.
   PagedOffers appended(List<OfferHit> page, {int pageSize = searchPageSize}) {
     final seen = {for (final o in items) o.offerId};
-    return PagedOffers(items: [...items, for (final o in page) if (seen.add(o.offerId)) o], hasMore: page.length >= pageSize);
+    return PagedOffers(
+      items: [...items, for (final o in page) if (seen.add(o.offerId)) o],
+      fetched: fetched + page.length,
+      hasMore: page.length >= pageSize,
+    );
   }
 }
 
@@ -62,14 +72,15 @@ class SearchResults extends AsyncNotifier<PagedOffers> {
   Future<PagedOffers> build() async =>
       const PagedOffers().appended(await ref.watch(searchRepositoryProvider).search(args, limit: searchPageSize));
 
-  Future<void> loadMore() async {
+  /// Scroll-triggered calls stop after a failure; only the retry button passes [retry].
+  Future<void> loadMore({bool retry = false}) async {
     final cur = state.value;
-    if (cur == null || !cur.hasMore || cur.loadingMore) return;
+    if (cur == null || !cur.hasMore || cur.loadingMore || (cur.loadMoreFailed && !retry)) return;
     state = AsyncData(cur.copyWith(loadingMore: true, loadMoreFailed: false));
     try {
       final page = await ref
           .read(searchRepositoryProvider)
-          .search(args, limit: searchPageSize, offset: cur.items.length);
+          .search(args, limit: searchPageSize, offset: cur.fetched);
       state = AsyncData(cur.appended(page));
     } on Object {
       state = AsyncData(cur.copyWith(loadingMore: false, loadMoreFailed: true));

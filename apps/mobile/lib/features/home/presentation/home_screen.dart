@@ -87,7 +87,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
   @override
   Widget build(BuildContext context) {
     ref.listen(realtimeEventsProvider, (_, e) {
-      if (e.value == RealtimeService.resync) {
+      if (e.value?.kind == RealtimeService.resync) {
         ref.invalidate(merchantsProvider);
         ref.invalidate(homeVouchersProvider);
       }

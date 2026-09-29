@@ -10,7 +10,7 @@ final voucherRepositoryProvider = Provider<VoucherRepository>((ref) => VoucherRe
 /// Active vouchers, optionally for one merchant (null = all).
 final vouchersProvider = FutureProvider.family<List<Voucher>, String?>((ref, merchantId) {
   ref.listen(realtimeEventsProvider, (_, e) {
-    if (e.value == RealtimeService.resync) ref.invalidateSelf();
+    if (e.value?.kind == RealtimeService.resync) ref.invalidateSelf();
   });
   return ref.watch(voucherRepositoryProvider).active(merchantId: merchantId);
 });

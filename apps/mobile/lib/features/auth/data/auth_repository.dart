@@ -39,10 +39,11 @@ class AuthRepository {
   }
 
   /// Sends a 6-digit code. [captchaToken] is null when Turnstile is not configured.
-  Future<void> sendEmailOtp(String email, {String? captchaToken}) {
+  /// [createUser] false for re-verification of an existing account (never mint a new uid).
+  Future<void> sendEmailOtp(String email, {String? captchaToken, bool createUser = true}) {
     final e = email.trim();
     if (!_email.hasMatch(e)) throw const AppFailure('invalid_input');
-    return _auth.signInWithOtp(email: e, shouldCreateUser: true, captchaToken: captchaToken);
+    return _auth.signInWithOtp(email: e, shouldCreateUser: createUser, captchaToken: captchaToken);
   }
 
   Future<void> verifyEmailOtp(String email, String code) async {

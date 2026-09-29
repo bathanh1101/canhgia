@@ -53,7 +53,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('2.350 xu'), findsOneWidget);
     expect(find.text('★ HẠNG BẠC'), findsOneWidget);
-    expect(find.text('Còn 7.000.000đ để lên Vàng'), findsOneWidget);
+    expect(find.text('Còn ước tính 7.000.000đ để lên Vàng'), findsOneWidget);
     expect(find.text('+10%'), findsOneWidget); // ladder, "hoa hồng" implied
     expect(find.text('Mời bạn, nhận đến 30.000đ'), findsOneWidget);
     expect(find.text('ABCD1234'), findsOneWidget);

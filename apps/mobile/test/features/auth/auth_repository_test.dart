@@ -26,6 +26,16 @@ void main() {
     verify(() => auth.signInWithOtp(email: 'a@b.co', shouldCreateUser: true, captchaToken: 'cap')).called(1);
   });
 
+  test('sendEmailOtp(createUser: false) never creates a user (PIN re-verification)', () async {
+    when(() => auth.signInWithOtp(
+          email: any(named: 'email'),
+          shouldCreateUser: any(named: 'shouldCreateUser'),
+          captchaToken: any(named: 'captchaToken'),
+        )).thenAnswer((_) async {});
+    await repo.sendEmailOtp('a@b.co', createUser: false);
+    verify(() => auth.signInWithOtp(email: 'a@b.co', shouldCreateUser: false)).called(1);
+  });
+
   test('sendEmailOtp rejects malformed email before hitting the network', () {
     for (final bad in ['', 'abc', 'a@b', '@b.co', 'a b@c.de']) {
       expect(() => repo.sendEmailOtp(bad), throwsA(isA<AppFailure>().having((f) => f.code, 'code', 'invalid_input')), reason: bad);

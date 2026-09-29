@@ -49,7 +49,7 @@ class _MissingOrderScreenState extends ConsumerState<MissingOrderScreen> {
       firstDate: t.subtract(const Duration(days: 60)),
       lastDate: t.subtract(const Duration(days: 1)),
     );
-    if (d != null) ref.read(missingOrderFormProvider.notifier).setDate(d);
+    if (d != null && mounted) ref.read(missingOrderFormProvider.notifier).setDate(d);
   }
 
   Future<void> _pickPhotos() async {
@@ -58,6 +58,7 @@ class _MissingOrderScreenState extends ConsumerState<MissingOrderScreen> {
     if (have >= maxMissingOrderPhotos) return;
     try {
       final more = await ref.read(photoPickerProvider).pickMany(maxMissingOrderPhotos - have);
+      if (!mounted) return;
       ref.read(missingOrderFormProvider.notifier).addPhotos(more);
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(missingOrderErrorMessage(e))));
@@ -70,7 +71,7 @@ class _MissingOrderScreenState extends ConsumerState<MissingOrderScreen> {
     if (uid == null) return;
     try {
       final code = await ref.read(missingOrderFormProvider.notifier).submit(uid, today: _today);
-      if (code == null) return;
+      if (code == null || !mounted) return;
       _code.clear();
       _value.clear();
       messenger.showSnackBar(SnackBar(content: Text('Đã gửi yêu cầu $code. Chúng tôi sẽ đối soát với sàn.')));

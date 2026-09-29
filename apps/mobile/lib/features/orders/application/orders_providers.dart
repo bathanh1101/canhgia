@@ -13,7 +13,7 @@ typedef OrdersQuery = ({DateTime month, OrderTab tab, int limit});
 /// Re-fetch on any `orders` change (realtime) or after a reconnect.
 void _invalidateOnOrders(Ref ref) {
   ref.listen(realtimeEventsProvider, (_, e) {
-    if (e.value == 'orders' || e.value == RealtimeService.resync) ref.invalidateSelf();
+    if (e.value?.kind == 'orders' || e.value?.kind == RealtimeService.resync) ref.invalidateSelf();
   });
 }
 

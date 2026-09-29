@@ -9,10 +9,14 @@ class OrdersRepository {
 
   Future<List<Order>> list(String uid, {required DateTime month, required OrderTab tab, required int limit}) async {
     final b = monthBounds(month);
-    var q = _db.from('orders').select(Order.columns).eq('user_id', uid).gte('order_time', b.from).lt('order_time', b.to);
+    // Same date the server uses: coalesce(order_time, created_at).
+    var q = _db.from('orders').select(Order.columns).eq('user_id', uid).or(
+          'and(order_time.gte.${b.from},order_time.lt.${b.to}),'
+          'and(order_time.is.null,created_at.gte.${b.from},created_at.lt.${b.to})',
+        );
     final states = tab.creditStates;
     if (states != null) q = q.inFilter('credit_state', states);
-    final rows = await q.order('order_time', ascending: false).limit(limit);
+    final rows = await q.order('order_time', ascending: false, nullsFirst: false).order('created_at', ascending: false).limit(limit);
     return [for (final r in rows) Order.fromJson(r)];
   }
 

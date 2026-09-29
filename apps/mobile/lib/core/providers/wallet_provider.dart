@@ -10,7 +10,7 @@ final walletProvider = StreamProvider<Wallet?>((ref) {
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return const Stream.empty();
   ref.listen(realtimeEventsProvider, (_, e) {
-    if (e.value == RealtimeService.resync) ref.invalidateSelf();
+    if (e.value?.kind == RealtimeService.resync) ref.invalidateSelf();
   });
   return ref
       .watch(supabaseProvider)

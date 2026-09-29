@@ -57,7 +57,7 @@ const _allowedPrefixes = [
 /// `data.route` comes from the server / push payload: accept only known in-app paths.
 String? safeRoute(Object? raw) {
   if (raw is! String || raw.length > 200) return null;
-  if (!RegExp(r'^/[A-Za-z0-9/_\-.?=&%]*$').hasMatch(raw) || raw.startsWith('//') || raw.contains('..')) return null;
+  if (!RegExp(r'^/[A-Za-z0-9/_\-.?=&]*$').hasMatch(raw) || raw.startsWith('//') || raw.contains('..')) return null;
   final path = raw.split('?').first;
   return _allowedPrefixes.any((p) => path == p || path.startsWith(p.endsWith('/') ? p : '$p/')) ? raw : null;
 }

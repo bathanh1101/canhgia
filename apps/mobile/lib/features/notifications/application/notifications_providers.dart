@@ -14,7 +14,7 @@ final notificationsProvider = FutureProvider.autoDispose.family<List<AppNotifica
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return const [];
   ref.listen(realtimeEventsProvider, (_, e) {
-    if (e.value == 'notifications' || e.value == RealtimeService.resync) ref.invalidateSelf();
+    if (e.value?.kind == 'notifications' || e.value?.kind == RealtimeService.resync) ref.invalidateSelf();
   });
   return ref.watch(notificationsRepositoryProvider).list(uid, type: tab.type);
 });

@@ -92,11 +92,12 @@ class MissingOrderForm extends Notifier<MissingOrderFormState> {
             valueVnd: s.valueVnd,
             photos: s.photos,
           );
+      if (!ref.mounted) return code;
       ref.invalidate(myReportsProvider);
       state = const MissingOrderFormState();
       return code;
     } on Object {
-      state = state.copyWith(submitting: false);
+      if (ref.mounted) state = state.copyWith(submitting: false);
       rethrow;
     }
   }

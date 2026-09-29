@@ -35,7 +35,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
     setState(() => _saving = true);
     try {
       await ref.read(accountRepositoryProvider).updateProfile(displayName: name);
-      ref.invalidate(profileProvider);
+      if (mounted) ref.invalidate(profileProvider);
       messenger.showSnackBar(const SnackBar(content: Text('Đã lưu thông tin.')));
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(mapErrorMessage(e))));

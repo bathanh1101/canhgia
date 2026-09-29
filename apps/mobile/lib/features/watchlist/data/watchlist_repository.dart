@@ -21,7 +21,7 @@ class WatchlistRepository {
   final SupabaseClient _db;
 
   Future<List<WatchItem>> list(String uid) async {
-    final rows = await _db.from('watchlist_items').select(_cols).eq('user_id', uid).order('created_at', ascending: false);
+    final rows = await _db.from('watchlist_items').select(_cols).eq('user_id', uid).order('created_at', ascending: false).limit(100);
     return [for (final r in rows) WatchItem.fromJson(r)];
   }
 

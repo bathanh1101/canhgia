@@ -7,6 +7,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_session_provider.dart';
 import 'supabase_providers.dart';
 
+/// A realtime signal. Deliberately has identity equality: Riverpod drops a new
+/// `AsyncData` equal to the previous one, so value-equal events would be swallowed.
+class RealtimeEvent {
+  RealtimeEvent(this.kind); // not const: canonicalised instances would be `==` again
+  final String kind;
+}
+
 /// One channel `user:<uid>` with postgres_changes on the user's own rows.
 /// Emits the table name per change, and [resync] whenever local state may be
 /// stale: re-SUBSCRIBED after an error, app resumed, access token refreshed.
@@ -18,12 +25,12 @@ class RealtimeService with WidgetsBindingObserver {
 
   final SupabaseClient _client;
   final String _uid;
-  final _events = StreamController<String>.broadcast();
+  final _events = StreamController<RealtimeEvent>.broadcast();
   RealtimeChannel? _channel;
   StreamSubscription<AuthState>? _authSub;
   var _hadError = false;
 
-  Stream<String> get events => _events.stream;
+  Stream<RealtimeEvent> get events => _events.stream;
 
   void start() {
     WidgetsBinding.instance.addObserver(this);
@@ -56,7 +63,7 @@ class RealtimeService with WidgetsBindingObserver {
   }
 
   void _emit(String v) {
-    if (!_events.isClosed) _events.add(v);
+    if (!_events.isClosed) _events.add(RealtimeEvent(v));
   }
 
   @override
@@ -82,9 +89,9 @@ final realtimeServiceProvider = Provider<RealtimeService?>((ref) {
   return s;
 });
 
-/// Table names ('orders' | 'notifications' | 'withdrawals') or [RealtimeService.resync].
-/// List providers: `ref.listen(realtimeEventsProvider, (_, e) { if (...) ref.invalidateSelf(); })`.
-final realtimeEventsProvider = StreamProvider<String>((ref) {
+/// `kind` is a table name ('orders' | 'notifications' | 'withdrawals') or [RealtimeService.resync].
+/// List providers: `ref.listen(realtimeEventsProvider, (_, e) { if (e.value?.kind == ...) ref.invalidateSelf(); })`.
+final realtimeEventsProvider = StreamProvider<RealtimeEvent>((ref) {
   final s = ref.watch(realtimeServiceProvider);
   return s?.events ?? const Stream.empty();
 });

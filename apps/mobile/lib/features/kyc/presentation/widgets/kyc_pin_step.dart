@@ -24,7 +24,7 @@ class KycPinStep extends ConsumerWidget {
         Text(
           hasPin
               ? 'Bạn đã sẵn sàng rút tiền về tài khoản ngân hàng.'
-              : 'Mã PIN 6 số bảo vệ mỗi lần rút tiền. Sau khi tạo PIN, rút tiền sẽ tạm khóa 24 giờ để an toàn.',
+              : 'Mã PIN 6 số bảo vệ mỗi lần rút tiền. Đổi PIN hoặc thêm ngân hàng sẽ tạm khóa rút tiền 24 giờ để an toàn.',
           textAlign: TextAlign.center,
           style: AppText.body,
         ),

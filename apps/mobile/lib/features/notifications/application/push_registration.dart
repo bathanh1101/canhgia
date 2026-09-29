@@ -16,9 +16,10 @@ class ForegroundPush {
 }
 
 ForegroundPush? pushFromMessage(RemoteMessage m) {
-  final title = m.notification?.title ?? m.data['title'] as String?;
+  String? str(Object? v) => v is String ? v : null; // payload values are untrusted: never cast
+  final title = m.notification?.title ?? str(m.data['title']);
   if (title == null || title.trim().isEmpty) return null;
-  return ForegroundPush(title: title, body: m.notification?.body ?? m.data['body'] as String?, route: safeRoute(m.data['route']));
+  return ForegroundPush(title: title, body: m.notification?.body ?? str(m.data['body']), route: safeRoute(m.data['route']));
 }
 
 /// Token registration lives in core `PushTokenService`; this only surfaces foreground messages.

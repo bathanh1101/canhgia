@@ -23,15 +23,6 @@ class _MockCompare extends Mock implements CompareRepository {}
 
 GroupInfo _info(int g, String name, int price) => GroupInfo(groupId: g, name: name, priceVnd: price, merchantId: 'shopee');
 
-CompareOffer _offer(int effective) => CompareOffer.fromJson({
-      'offer_id': 1,
-      'merchant_id': 'shopee',
-      'name': 'x',
-      'price_vnd': effective + 100,
-      'est_cashback_vnd': 100,
-      'effective_price_vnd': effective,
-    });
-
 void main() {
   late _MockWatch watch;
   late _MockHistory history;
@@ -50,12 +41,9 @@ void main() {
     history = _MockHistory();
     compare = _MockCompare();
     when(() => history.groupInfos(any())).thenAnswer((_) async => {
-          1: _info(1, 'Tai nghe Sony', 6290000),
+          1: _info(1, 'Tai nghe Sony', 5800000),
           2: _info(2, 'Nồi chiên Philips', 2090000),
         });
-    // group 1 is comparable (effective 5.8tr), group 2 has a single offer (compare returns nothing)
-    when(() => compare.compare(1)).thenAnswer((_) async => [_offer(5800000), _offer(6000000)]);
-    when(() => compare.compare(2)).thenAnswer((_) async => const []);
     when(() => watch.list('u1')).thenAnswer((_) async => const [
           WatchItem(id: 10, groupId: 1, targetPriceVnd: 5900000),
           WatchItem(id: 11, groupId: 2, targetPriceVnd: 1990000),
@@ -70,15 +58,15 @@ void main() {
     expect(const WatchEntry(item: item).gapPercent, isNull);
   });
 
-  test('watchlistProvider uses effective price when comparable, cheapest listed price otherwise; tolerates compare errors', () async {
-    when(() => compare.compare(2)).thenThrow(Exception('rpc down'));
+  test('watchlistProvider compares the raw cheapest price (as the server job) with one batched query', () async {
     final c = ProviderContainer(retry: (_, _) => null, overrides: overrides());
     addTearDown(c.dispose);
     final list = await c.read(watchlistProvider.future);
     expect(list[0].currentVnd, 5800000);
     expect(list[0].reached, isTrue);
     expect(list[1].currentVnd, 2090000);
-    expect(list[1].reached, isFalse);
+    verify(() => history.groupInfos(any())).called(1);
+    verifyNever(() => compare.compare(any()));
   });
 
   test('WatchlistRepository.setTarget rejects non-positive targets before touching the backend', () async {

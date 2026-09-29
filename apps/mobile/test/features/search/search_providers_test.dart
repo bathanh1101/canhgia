@@ -52,11 +52,26 @@ void main() {
     expect(s.items.length, 20);
     expect(s.loadMoreFailed, isTrue);
     expect(s.loadingMore, isFalse);
+    await c.read(searchResultsProvider(args).notifier).loadMore(); // scroll tick after failure: no new request
+    verify(() => repo.search(any(), limit: 20, offset: 20)).called(1);
     when(() => repo.search(any(), limit: 20, offset: 20)).thenAnswer((_) async => [hit(19), hit(20)]);
-    await c.read(searchResultsProvider(args).notifier).loadMore();
+    await c.read(searchResultsProvider(args).notifier).loadMore(retry: true);
     s = c.read(searchResultsProvider(args)).value!;
     expect(s.items.length, 21);
     expect(s.loadMoreFailed, isFalse);
+  });
+
+  test('offset follows server rows, not the de-duplicated count (all-duplicate page cannot loop)', () async {
+    when(() => repo.search(any(), limit: 20, offset: 0)).thenAnswer((_) async => [for (var i = 0; i < 20; i++) hit(i)]);
+    when(() => repo.search(any(), limit: 20, offset: 20)).thenAnswer((_) async => [for (var i = 0; i < 20; i++) hit(i)]);
+    when(() => repo.search(any(), limit: 20, offset: 40)).thenAnswer((_) async => [hit(50)]);
+    await c.read(searchResultsProvider(args).future);
+    await c.read(searchResultsProvider(args).notifier).loadMore();
+    var s = c.read(searchResultsProvider(args)).value!;
+    expect((s.items.length, s.fetched), (20, 40));
+    await c.read(searchResultsProvider(args).notifier).loadMore();
+    s = c.read(searchResultsProvider(args)).value!;
+    expect((s.items.length, s.fetched, s.hasMore), (21, 41, false));
   });
 
   test('first-page failure surfaces as AsyncError', () async {

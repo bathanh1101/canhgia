@@ -27,7 +27,7 @@ final withdrawalsProvider = FutureProvider.autoDispose<List<Withdrawal>>((ref) a
   final uid = ref.watch(currentUserIdProvider);
   if (uid == null) return const [];
   ref.listen(realtimeEventsProvider, (_, e) {
-    if (e.value == 'withdrawals' || e.value == RealtimeService.resync) ref.invalidateSelf();
+    if (e.value?.kind == 'withdrawals' || e.value?.kind == RealtimeService.resync) ref.invalidateSelf();
   });
   return ref.watch(withdrawRepositoryProvider).withdrawals(uid);
 });

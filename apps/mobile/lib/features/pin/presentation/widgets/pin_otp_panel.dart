@@ -63,7 +63,7 @@ class _PinOtpPanelState extends ConsumerState<PinOtpPanel> {
         TurnstileCaptcha(onToken: (t) => setState(() => _captcha = t)),
         AppButton(
           label: 'Gửi mã xác minh',
-          onPressed: email.isEmpty || !captchaOk ? null : () => _run(() => repo.sendEmailOtp(email, captchaToken: _captcha), advance: true),
+          onPressed: email.isEmpty || !captchaOk ? null : () => _run(() => repo.sendEmailOtp(email, captchaToken: _captcha, createUser: false), advance: true),
         ),
       ] else ...[
         TextField(

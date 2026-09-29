@@ -31,6 +31,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(notificationsRepositoryProvider).markRead(ids);
+      if (!mounted) return;
       ref
         ..invalidate(notificationsProvider)
         ..invalidate(unreadNotificationsProvider);

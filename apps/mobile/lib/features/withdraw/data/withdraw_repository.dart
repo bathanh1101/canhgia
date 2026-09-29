@@ -33,7 +33,13 @@ class WithdrawRepository {
     return [for (final r in rows) Withdrawal.fromJson(r)];
   }
 
-  /// [requestKey] is generated once per form and reused on retry (server idempotency).
+  /// The caller's withdrawal created with [requestKey] (RLS scopes to own rows), or null when the server never saw it.
+  Future<Withdrawal?> withdrawalByKey(String requestKey) async {
+    final row = await _db.from('withdrawals').select(Withdrawal.columns).eq('request_key', requestKey).maybeSingle();
+    return row == null ? null : Withdrawal.fromJson(row);
+  }
+
+  /// [requestKey] is generated once per attempt and reused on retry (server idempotency).
   Future<WithdrawalResult> request({
     required String requestKey,
     required int amount,

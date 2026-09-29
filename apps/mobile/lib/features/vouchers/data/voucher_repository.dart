@@ -69,8 +69,15 @@ class VoucherRepository {
     return {for (final r in rows) (r['voucher_id'] as num).toInt()};
   }
 
-  Future<void> save(String uid, int voucherId) =>
-      _db.from('saved_vouchers').upsert({'user_id': uid, 'voucher_id': voucherId}, onConflict: 'user_id,voucher_id');
+  /// Plain INSERT: `saved_vouchers` grants insert/delete only, so an upsert (ON CONFLICT DO UPDATE) is denied.
+  /// A duplicate (23505) means it is already saved, which is the desired end state.
+  Future<void> save(String uid, int voucherId) async {
+    try {
+      await _db.from('saved_vouchers').insert({'user_id': uid, 'voucher_id': voucherId});
+    } on PostgrestException catch (e) {
+      if (e.code != '23505') rethrow;
+    }
+  }
 
   Future<void> unsave(String uid, int voucherId) =>
       _db.from('saved_vouchers').delete().eq('user_id', uid).eq('voucher_id', voucherId);

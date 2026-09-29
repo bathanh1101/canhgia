@@ -49,7 +49,7 @@ class RewardsRepository {
     return ReferralStats(invited: rows.length, bonusVnd: bonus);
   }
 
-  /// Trailing-12-month credited GMV (same rule as `refresh_vip_tiers`); display only.
+  /// Estimated trailing-12-month credited GMV (same rule as `refresh_vip_tiers`); display only, the server tier is authoritative.
   Future<int> gmv12m(String uid, DateTime now) async {
     final since = DateTime(now.year - 1, now.month, now.day).toUtc().toIso8601String();
     final rows = await _db
@@ -57,8 +57,8 @@ class RewardsRepository {
         .select('value_vnd')
         .eq('user_id', uid)
         .eq('credit_state', 'credited')
-        .gte('order_time', since)
-        .limit(2000);
+        .or('order_time.gte.$since,and(order_time.is.null,created_at.gte.$since)') // coalesce(order_time, created_at)
+        .limit(5000); // ponytail: heavier users are under-counted; move to a server RPC if that matters
     return rows.fold<int>(0, (s, r) => s + ((r['value_vnd'] as num?)?.toInt() ?? 0));
   }
 

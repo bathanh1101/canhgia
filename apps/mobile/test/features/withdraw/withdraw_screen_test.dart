@@ -27,6 +27,7 @@ Widget _app(
   DateTime? holdUntil,
   int available = 1250000,
   String pinResult = 'tok-1',
+  List<Withdrawal> recent = const [],
 }) {
   final router = GoRouter(routes: [
     GoRoute(path: '/', builder: (_, _) => WithdrawScreen(now: _now)),
@@ -49,7 +50,7 @@ Widget _app(
       bankAccountsProvider.overrideWith((ref) async => accounts),
       banksProvider.overrideWith((ref) async => [_vcb]),
       publicSettingsProvider.overrideWith((ref) async => const PublicSettings()),
-      withdrawalsProvider.overrideWith((ref) async => const []),
+      withdrawalsProvider.overrideWith((ref) async => recent),
     ],
     child: MaterialApp.router(routerConfig: router),
   );
@@ -82,6 +83,15 @@ void main() {
     expect(find.text('Số dư khả dụng không đủ.'), findsOneWidget);
   });
 
+  testWidgets('daily cap: history is watched so the remaining cap is enforced client-side', (t) async {
+    final used = Withdrawal(
+        id: 'w0', amount: 4900000, status: 'pending', bankBin: '970436', accountNumber: '1', createdAt: _now.subtract(const Duration(hours: 1)));
+    await t.pumpWidget(_app(_MockRepo(), available: 3000000, recent: [used]));
+    await t.pumpAndSettle();
+    await _type(t, '200000');
+    expect(find.textContaining('100.000đ'), findsWidgets); // remaining 5.000.000 - 4.900.000
+  });
+
   testWidgets('hold banner disables the confirm button', (t) async {
     await t.pumpWidget(_app(_MockRepo(), holdUntil: _now.add(const Duration(hours: 5))));
     await t.pumpAndSettle();
@@ -102,6 +112,7 @@ void main() {
     final repo = _MockRepo();
     final keys = <String>[];
     var calls = 0;
+    when(() => repo.withdrawalByKey(any())).thenAnswer((_) async => null);
     when(() => repo.request(
           requestKey: any(named: 'requestKey'),
           amount: any(named: 'amount'),
