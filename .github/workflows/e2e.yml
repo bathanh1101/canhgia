@@ -14,7 +14,6 @@ env:
 
 jobs:
   backend-integration:
-    if: ${{ hashFiles('supabase/migrations/*.sql') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +74,6 @@ jobs:
           pkill -f "deno" || true
 
   web-e2e:
-    if: ${{ hashFiles('apps/web/package.json') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -154,7 +152,6 @@ jobs:
           pkill -f "deno" || true
 
   extension-e2e:
-    if: ${{ hashFiles('apps/extension/package.json') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -238,7 +235,7 @@ jobs:
           pkill -f "deno" || true
 
   mobile-e2e:
-    if: github.event_name == 'schedule' && hashFiles('apps/mobile/pubspec.yaml') != ''
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

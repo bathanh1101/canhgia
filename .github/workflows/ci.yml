@@ -5,7 +5,6 @@ on:
 
 jobs:
   supabase:
-    if: ${{ hashFiles('supabase/migrations/*.sql') != '' }}
     runs-on: ubuntu-latest
     env:
       TURNSTILE_SECRET: 1x0000000000000000000000000000000AA
@@ -22,11 +21,10 @@ jobs:
       - run: supabase test db
       - run: bash supabase/tests/concurrency/withdraw-race.sh
         if: ${{ hashFiles('supabase/tests/concurrency/withdraw-race.sh') != '' }}
-      - run: deno test supabase/functions
-        if: ${{ hashFiles('supabase/functions/**/*.test.ts') != '' }}
+      - run: deno test --allow-net --allow-env --allow-read
+        working-directory: supabase/functions
 
   web:
-    if: ${{ hashFiles('apps/web/package.json') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,7 +38,6 @@ jobs:
       - run: pnpm --filter ./apps/web build
 
   extension:
-    if: ${{ hashFiles('apps/extension/package.json') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,9 +49,12 @@ jobs:
       - run: pnpm --filter ./apps/extension typecheck
       - run: pnpm --filter ./apps/extension test
       - run: pnpm --filter ./apps/extension build
+        env:
+          WXT_SUPABASE_URL: http://127.0.0.1:54321
+          WXT_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+          WXT_LANDING_URL: http://localhost:3000
 
   mobile:
-    if: ${{ hashFiles('apps/mobile/pubspec.yaml') != '' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
-        with: { channel: stable, cache: true }
+        with: { flutter-version: 3.47.5, channel: stable, cache: true }
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
