@@ -3,7 +3,7 @@ create extension if not exists pgtap with schema extensions;
 grant execute on all functions in schema extensions to public;
 select plan(33);
 
-insert into public.merchants (id, name) values ('shopee', 'Shopee');
+insert into public.merchants (id, name) values ('shopee', 'Shopee') on conflict (id) do update set name = excluded.name;
 insert into auth.users (id, email) values
   ('a0000000-0000-0000-0000-00000000000a', 'a@x.io'), ('b0000000-0000-0000-0000-00000000000b', 'b@x.io');
 -- A: verified KYC, bank, 1.000.000 available. B: nothing.

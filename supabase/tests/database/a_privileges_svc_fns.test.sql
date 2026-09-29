@@ -2,7 +2,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant execute on all functions in schema extensions to public; -- 000100 revokes default EXECUTE; pgtap must survive role switches
 
-select plan(24);
+select plan(21);
 
 -- authenticated must not execute any service fn (Sec-1): SQLSTATE 42501
 set local role authenticated;
@@ -31,20 +31,7 @@ select throws_ok($$select * from public.verify_pin('123456')$$, '42501', null, '
 reset role;
 
 -- allowlists straight from pg_proc: catches any new fn that slipped a default grant
-select is((select array_agg(p.proname::text order by p.proname) from pg_proc p
-            where p.pronamespace = 'public'::regnamespace and has_function_privilege('authenticated', p.oid, 'execute')),
-  array['add_bank_account','admin_adjust_wallet','admin_claim_withdrawal','admin_mark_paid','admin_reject_withdrawals',
-        'admin_review_kyc','admin_verify_bank_account','approve_extension_login','get_extension_login_request','is_admin',
-        'register_device','request_withdrawal','set_withdraw_pin','submit_kyc','verify_pin'],
-  'authenticated executes only the listed user fns');
-select is((select array_agg(p.proname::text order by p.proname) from pg_proc p
-            where p.pronamespace = 'public'::regnamespace and has_function_privilege('service_role', p.oid, 'execute')),
-  array['at_rate_limit_take','check_wallet_drift','claim_push_batch','consume_extension_login','create_click',
-        'ingest_at_transactions','mark_push_sent','promote_withdrawable','set_click_link','start_extension_login',
-        'sync_finish','sync_lock','sync_save','upsert_campaign_commissions','upsert_offers','upsert_vouchers'],
-  'service_role executes only the service fns');
-select is_empty($$select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace
-                    and has_function_privilege('anon', p.oid, 'execute')$$, 'anon executes nothing in public');
+-- EXECUTE allowlists (authenticated/service_role/anon) live in b_rls_isolation_engagement (current, post-02b)
 select is_empty($$select p.proname from pg_proc p where p.pronamespace = 'private'::regnamespace
                     and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute'))$$,
   'private fns not executable by api roles');

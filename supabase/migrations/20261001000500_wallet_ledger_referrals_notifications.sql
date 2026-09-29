@@ -30,6 +30,7 @@ create table public.wallet_ledger (
   idempotency_key text not null unique,
   available_at timestamptz,
   promoted_at timestamptz,
+  held_remaining bigint not null default 0 check (held_remaining >= 0),
   note text,
   created_by uuid,
   created_at timestamptz not null default now()
@@ -66,28 +67,26 @@ create table public.fraud_flags (
   created_at timestamptz not null default now()
 );
 
--- Key of a ledger row for held bookkeeping: order, referral, or itself.
-create function private.ledger_key(p_order uuid, p_referral bigint, p_id bigint) returns text
-language sql immutable as $$
-  select coalesce('o' || p_order::text, 'r' || p_referral::text, 'l' || p_id::text)
-$$;
-
--- Routing (same txn as the insert). Invariant: a key is wholly held or wholly available, so
--- held(key) = sum(amount of key) while any positive row of the key is un-promoted.
+-- Routing (same txn as the insert, wallet row locked first everywhere). Held money is tracked per positive
+-- row (held_remaining); a reversal of an order/referral consumes held_remaining of that key oldest-first,
+-- the rest comes from available. promote_withdrawable moves each due row's held_remaining to available.
 create function private.ledger_route() returns trigger
 language plpgsql security definer set search_path = pg_catalog, public, extensions as $$
 declare
   w public.wallets;
-  v_held bigint := 0;
+  r record;
+  v_left bigint;
+  v_take bigint;
   v_from_held bigint := 0;
 begin
   select * into w from public.wallets where user_id = new.user_id for update;
   if not found then
-    raise exception 'wallet_missing';
+    perform private.raise_code('invalid_input', '{"reason":"wallet_missing"}');
   end if;
 
   if new.amount_vnd > 0 then
     if new.available_at is not null and new.available_at > now() then
+      new.held_remaining := new.amount_vnd;
       update public.wallets set held_vnd = held_vnd + new.amount_vnd where user_id = new.user_id;
     else
       new.promoted_at := now();
@@ -97,16 +96,18 @@ begin
     new.promoted_at := now();
     if new.entry_type in ('cashback_reversal', 'manual_reversal', 'referral_reversal')
        and (new.order_id is not null or new.referral_id is not null) then
-      select coalesce(sum(l.amount_vnd), 0) into v_held
-        from public.wallet_ledger l
-       where l.user_id = new.user_id
-         and l.order_id is not distinct from new.order_id
-         and l.referral_id is not distinct from new.referral_id
-         and exists (select 1 from public.wallet_ledger p
-                      where p.user_id = new.user_id and p.order_id is not distinct from new.order_id
-                        and p.referral_id is not distinct from new.referral_id
-                        and p.amount_vnd > 0 and p.promoted_at is null);
-      v_from_held := least(-new.amount_vnd, greatest(v_held, 0));
+      v_left := -new.amount_vnd;
+      for r in select l.id, l.held_remaining from public.wallet_ledger l
+                where l.user_id = new.user_id and l.order_id is not distinct from new.order_id
+                  and l.referral_id is not distinct from new.referral_id and l.held_remaining > 0
+                order by l.id for update
+      loop
+        exit when v_left = 0;
+        v_take := least(v_left, r.held_remaining);
+        update public.wallet_ledger set held_remaining = held_remaining - v_take where id = r.id;
+        v_left := v_left - v_take;
+        v_from_held := v_from_held + v_take;
+      end loop;
     end if;
     update public.wallets
        set held_vnd = held_vnd - v_from_held,
@@ -135,7 +136,7 @@ begin
   if tg_op = 'DELETE' then
     raise exception 'ledger_immutable';
   end if;
-  if (to_jsonb(new) - 'promoted_at') is distinct from (to_jsonb(old) - 'promoted_at')
+  if (to_jsonb(new) - 'promoted_at' - 'held_remaining') is distinct from (to_jsonb(old) - 'promoted_at' - 'held_remaining')
      or old.promoted_at is not null then
     raise exception 'ledger_immutable';
   end if;

@@ -6,7 +6,7 @@ language sql security definer set search_path = pg_catalog, public as $$
     select n.id from public.notifications n join public.profiles p on p.id = n.user_id
      where n.push_sent_at is null and n.push_attempts < 3
        and (n.push_claimed_at is null or n.push_claimed_at < now() - interval '10 minutes')
-       and coalesce((p.notification_prefs ->> n.type::text)::boolean, true)
+       and (p.notification_prefs ->> n.type::text) is distinct from 'false'
      order by n.id limit greatest(p_limit, 0) for update of n skip locked),
   u as (
     update public.notifications n set push_claimed_at = now(), push_attempts = n.push_attempts + 1
@@ -21,7 +21,9 @@ language sql security definer set search_path = pg_catalog, public as $$
   update public.notifications set push_sent_at = now() where id = any(p_ids)
 $$;
 
--- Moves due held credits to available, one key (order/referral/row) at a time. Returns ledger rows promoted.
+-- Moves each due held ledger row (its held_remaining) to available. Per-row savepoint: one bad row never stalls the run;
+-- wallet lock first (same order as ledger_route), promoted_at rechecked under the row lock so overlapping runs are idempotent.
+-- Returns ledger rows promoted.
 create function public.promote_withdrawable() returns int
 language plpgsql security definer set search_path = pg_catalog, public as $$
 declare
@@ -30,24 +32,25 @@ declare
   n int := 0;
 begin
   for d in
-    select l.user_id, l.order_id, l.referral_id, array_agg(l.id) ids
-      from public.wallet_ledger l
+    select l.id, l.user_id from public.wallet_ledger l
      where l.amount_vnd > 0 and l.promoted_at is null and l.available_at <= now()
-     group by l.user_id, l.order_id, l.referral_id, case when l.order_id is null and l.referral_id is null then l.id end
+     order by l.user_id, l.id
   loop
-    perform 1 from public.wallets w where w.user_id = d.user_id for update;
-    select greatest(0, coalesce(sum(x.amount_vnd), 0)) into v_amt from public.wallet_ledger x
-     where x.user_id = d.user_id
-       and (case when d.order_id is null and d.referral_id is null then x.id = d.ids[1]
-                 else x.order_id is not distinct from d.order_id and x.referral_id is not distinct from d.referral_id end);
-    update public.wallets set held_vnd = held_vnd - v_amt, available_vnd = available_vnd + v_amt, updated_at = now()
-     where user_id = d.user_id;
-    update public.wallet_ledger set promoted_at = now() where id = any(d.ids);
-    if v_amt > 0 then
-      perform private.notify(d.user_id, 'wallet', 'Tiền hoàn đã khả dụng', 'Bạn có thể rút số tiền này',
-        jsonb_build_object('amount_vnd', v_amt));
-    end if;
-    n := n + cardinality(d.ids);
+    begin
+      perform 1 from public.wallets w where w.user_id = d.user_id for update;
+      select x.held_remaining into v_amt from public.wallet_ledger x where x.id = d.id and x.promoted_at is null for update;
+      if not found then continue; end if;
+      update public.wallet_ledger set promoted_at = now(), held_remaining = 0 where id = d.id;
+      update public.wallets set held_vnd = held_vnd - v_amt, available_vnd = available_vnd + v_amt, updated_at = now()
+       where user_id = d.user_id;
+      if v_amt > 0 then
+        perform private.notify(d.user_id, 'wallet', 'Tiền hoàn đã khả dụng', 'Bạn có thể rút số tiền này',
+          jsonb_build_object('amount_vnd', v_amt));
+      end if;
+      n := n + 1;
+    exception when others then
+      raise warning 'promote_withdrawable: ledger % skipped: %', d.id, sqlerrm;
+    end;
   end loop;
   return n;
 end $$;
@@ -60,11 +63,7 @@ language sql stable security definer set search_path = pg_catalog, public as $$
            sum(case when l.entry_type in ('cashback_credit', 'cashback_reversal', 'referral_bonus', 'referral_reversal',
                'mission_bonus', 'manual_credit', 'manual_reversal') then l.amount_vnd else 0 end) earned
       from public.wallet_ledger l group by l.user_id),
-  keyed as (
-    select l.user_id, sum(l.amount_vnd) s, bool_or(l.amount_vnd > 0 and l.promoted_at is null) unp
-      from public.wallet_ledger l
-     group by l.user_id, private.ledger_key(l.order_id, l.referral_id, l.id)),
-  held as (select k.user_id, sum(greatest(k.s, 0)) h from keyed k where k.unp group by k.user_id),
+  held as (select l.user_id, sum(l.held_remaining) h from public.wallet_ledger l where l.held_remaining > 0 group by l.user_id),
   pend as (select o.user_id, sum(o.user_cashback_vnd) p from public.orders o
             where o.credit_state = 'pending' and o.user_id is not null group by o.user_id),
   x as (
@@ -84,6 +83,10 @@ begin
   if p_secret_hash is null or length(p_secret_hash) < 32 then
     perform private.raise_code('invalid_input', '{"field":"p_secret_hash"}');
   end if;
+  if p_ip is null then
+    perform private.raise_code('invalid_input', '{"field":"p_ip"}');
+  end if;
+  perform pg_advisory_xact_lock(hashtext(p_ip::text));  -- serialises count-then-insert per IP
   if (select count(*) from public.extension_login_codes c
        where c.requester_ip = p_ip and c.created_at > now() - interval '10 minutes') >= 5 then
     perform private.raise_code('rate_limited');

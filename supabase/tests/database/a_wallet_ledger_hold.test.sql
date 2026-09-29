@@ -2,7 +2,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(25);
 
-insert into public.merchants (id, name) values ('shopee', 'Shopee');
+insert into public.merchants (id, name) values ('shopee', 'Shopee') on conflict (id) do update set name = excluded.name;
 insert into auth.users (id, email) values
   ('a0000000-0000-0000-0000-00000000000a', 'a@x.io'), ('b0000000-0000-0000-0000-00000000000b', 'b@x.io');
 select is((select count(*)::int from public.wallets where user_id in ('a0000000-0000-0000-0000-00000000000a', 'b0000000-0000-0000-0000-00000000000b')),
@@ -84,7 +84,7 @@ insert into public.orders (id, source, merchant_id, transaction_id, user_id, cre
   ('c0000000-0000-0000-0000-000000000004', 'manual', 'shopee', 'T4', 'b0000000-0000-0000-0000-00000000000b', 'pending', 250);
 select is((select pending_vnd from public.wallets where user_id = 'b0000000-0000-0000-0000-00000000000b'), 250::bigint, 'pending_vnd from pending order');
 update public.orders set user_id = 'a0000000-0000-0000-0000-00000000000a' where id = 'c0000000-0000-0000-0000-000000000004';
-select results_eq($$select user_id, pending_vnd from public.wallets order by user_id$$,
+select results_eq($$select user_id, pending_vnd from public.wallets where user_id in ('a0000000-0000-0000-0000-00000000000a', 'b0000000-0000-0000-0000-00000000000b') order by user_id$$,
   $$values ('a0000000-0000-0000-0000-00000000000a'::uuid, 250::bigint), ('b0000000-0000-0000-0000-00000000000b'::uuid, 0::bigint)$$, 'reassignment moves pending');
 update public.orders set credit_state = 'credited' where id = 'c0000000-0000-0000-0000-000000000004';
 select is((select pending_vnd from public.wallets where user_id = 'a0000000-0000-0000-0000-00000000000a'), 0::bigint, 'pending cleared on credit');

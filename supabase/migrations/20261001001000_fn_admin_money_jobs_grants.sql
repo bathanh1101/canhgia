@@ -15,7 +15,7 @@ declare
   w public.withdrawals;
 begin
   select * into w from public.withdrawals x
-   where x.id = p_id and (x.status = 'pending' or (x.status = 'processing' and x.claimed_at < now() - interval '30 minutes'))
+   where x.id = p_id and (x.status = 'pending' or (x.status = 'processing' and x.transfer_ref is null and x.claimed_at < now() - interval '30 minutes'))
    for update skip locked;
   if not found then perform private.raise_code('invalid_state'); end if;
   update public.withdrawals x set status = 'processing', claimed_by = v_admin, claimed_at = now() where x.id = p_id;

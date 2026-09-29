@@ -32,6 +32,7 @@ begin
   if p_pin is not null and u.pin_hash = extensions.crypt(p_pin, u.pin_hash) then
     update private.user_pins set failed_attempts = 0, locked_until = null where user_id = v_uid;
     ok := true; attempts_left := 5; locked_until := null;
+    delete from private.pin_tokens where user_id = v_uid and expires_at < now() - interval '1 hour';
     insert into private.pin_tokens (user_id) values (v_uid) returning token into pin_token;
     return next;
     return;
@@ -76,8 +77,14 @@ begin
      where a ->> 'method' = 'otp' and to_timestamp((a ->> 'timestamp')::bigint) > now() - interval '10 minutes') then
     perform private.raise_code('pin_invalid', '{"reason":"otp_required"}');
   end if;
-  insert into private.user_pins (user_id, pin_hash) values (v_uid, extensions.crypt(p_new, extensions.gen_salt('bf')))
-  on conflict (user_id) do update set pin_hash = excluded.pin_hash, failed_attempts = 0, locked_until = null, updated_at = now();
+  if v_exists then
+    update private.user_pins set pin_hash = extensions.crypt(p_new, extensions.gen_salt('bf')), failed_attempts = 0,
+      locked_until = null, updated_at = now() where user_id = v_uid;
+  else  -- two concurrent first-PIN calls: the loser is rejected, never overwrites
+    insert into private.user_pins (user_id, pin_hash) values (v_uid, extensions.crypt(p_new, extensions.gen_salt('bf')))
+    on conflict (user_id) do nothing;
+    if not found then perform private.raise_code('pin_invalid'); end if;
+  end if;
   update public.profiles set has_pin = true where id = v_uid;
   if v_exists then perform private.bump_hold(v_uid); end if;
 end $$;

@@ -34,18 +34,21 @@ begin
 
   select * into o from public.orders where conversion_id = v_conv for update;
   if found then
-    if o.update_time is not null and v_upd is not null and o.update_time >= v_upd
+    if o.update_time is not null and v_upd is not null and o.update_time > v_upd then
+      return 'skipped';  -- stale page: never regress newer state
+    end if;
+    if o.update_time is not null and v_upd is not null and o.update_time = v_upd
        and o.at_status is not distinct from v_status and o.commission_vnd = v_comm and o.is_confirmed = v_conf then
       return 'skipped';
     end if;
     v_result := 'updated';
     if o.user_id is null then
-      select * into v_uid, v_click from private.match_utm(v_utm);
+      select * into v_uid, v_click from private.match_utm(v_utm, m.id);
       update public.orders set user_id = v_uid, click_id = v_click, matched_by = case when v_uid is not null then 'utm_content' end
        where id = o.id returning * into o;
     end if;
   else
-    select * into v_uid, v_click from private.match_utm(v_utm);
+    select * into v_uid, v_click from private.match_utm(v_utm, m.id);
     select * into v_man from public.orders x
      where v_txn is not null and x.source = 'manual' and x.conversion_id is null and x.merchant_id = m.id
        and x.transaction_id_norm = upper(regexp_replace(v_txn, '[^A-Za-z0-9]', '', 'g')) for update;
@@ -128,7 +131,7 @@ begin
   if p_rows is null or jsonb_typeof(p_rows) <> 'array' then
     perform private.raise_code('invalid_input', '{"field":"p_rows"}');
   end if;
-  for r in select * from jsonb_array_elements(p_rows) loop
+  for r in select e.value from jsonb_array_elements(p_rows) e order by e.value ->> 'conversion_id' loop  -- stable lock order across pages
     v_conv := null;
     begin
       v_conv := (r ->> 'conversion_id')::bigint;

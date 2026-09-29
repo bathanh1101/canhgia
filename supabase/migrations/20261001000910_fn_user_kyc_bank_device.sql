@@ -23,7 +23,7 @@ begin
     end if;
   end loop;
   select decrypted_secret into v_pepper from vault.decrypted_secrets where name = 'cccd_pepper';
-  if v_pepper is null then raise exception 'cccd_pepper_missing'; end if;
+  if v_pepper is null then perform private.raise_code('invalid_input', '{"reason":"cccd_pepper_missing"}'); end if;
   v_hmac := encode(extensions.hmac(p_id_number, v_pepper, 'sha256'), 'hex');
   insert into public.kyc_profiles (user_id, full_name, full_name_norm, id_number_last4, id_number_hmac, front_path, back_path)
   values (v_uid, btrim(p_full_name), private.norm_vn(p_full_name), right(p_id_number, 4), v_hmac, p_front_path, p_back_path)
@@ -72,20 +72,24 @@ language plpgsql security definer set search_path = pg_catalog, public, extensio
 declare
   v_uid uuid := private.require_uid();
   v_hash text;
-  v_new boolean;
+  v_had boolean;
+  v_ins boolean;
 begin
   if p_device_id is null or length(p_device_id) < 8 or p_platform is null then
     perform private.raise_code('invalid_input', '{"field":"p_device_id"}');
   end if;
   v_hash := encode(extensions.digest(p_device_id, 'sha256'), 'hex');
-  if exists (select 1 from public.user_devices d where d.user_id = v_uid and d.device_hash = v_hash) then
-    update public.user_devices set last_seen_at = now(), model = coalesce(p_model, model)
-     where user_id = v_uid and device_hash = v_hash;
-    return;
+  perform pg_advisory_xact_lock(hashtext('dev:' || v_uid));
+  v_had := exists (select 1 from public.user_devices d where d.user_id = v_uid);
+  insert into public.user_devices (user_id, device_hash, platform, model) values (v_uid, v_hash, p_platform, p_model)
+  on conflict (user_id, device_hash) do update set last_seen_at = now(), model = coalesce(excluded.model, public.user_devices.model)
+  returning (xmax = 0) into v_ins;
+  if v_ins then
+    -- best-effort signal: keep only the 10 most recently seen devices per user
+    delete from public.user_devices where id in (
+      select d.id from public.user_devices d where d.user_id = v_uid order by d.last_seen_at desc, d.id desc offset 10);
+    if v_had then perform private.bump_hold(v_uid); end if;
   end if;
-  v_new := exists (select 1 from public.user_devices d where d.user_id = v_uid);
-  insert into public.user_devices (user_id, device_hash, platform, model) values (v_uid, v_hash, p_platform, p_model);
-  if v_new then perform private.bump_hold(v_uid); end if;
 end $$;
 
 create function public.get_extension_login_request(p_code uuid)

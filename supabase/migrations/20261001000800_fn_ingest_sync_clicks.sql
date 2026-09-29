@@ -22,7 +22,7 @@ language sql security definer set search_path = pg_catalog, public as $$
 $$;
 
 -- utm_content 'u<short_id>c<click_id>'; click must belong to that user
-create function private.match_utm(p_utm text, out o_user uuid, out o_click bigint)
+create function private.match_utm(p_utm text, p_merchant text, out o_user uuid, out o_click bigint)
 language plpgsql stable security definer set search_path = pg_catalog, public as $$
 declare
   m text[] := regexp_match(coalesce(p_utm, ''), '^u(\d+)c(\d+)$');
@@ -30,7 +30,7 @@ begin
   if m is null then return; end if;
   select c.user_id, c.id into o_user, o_click
     from public.clicks c join public.profiles p on p.id = c.user_id
-   where c.id = m[2]::bigint and p.short_id = m[1]::bigint;
+   where c.id = m[2]::bigint and p.short_id = m[1]::bigint and c.merchant_id = p_merchant;
 end $$;
 
 -- FM-5: post target - sum(ledger for order); one rule for flip-flop, commission edits, manual attach
@@ -44,7 +44,8 @@ begin
   select * into o from public.orders where id = p_order;
   if o.user_id is null then return; end if;
   select o.user_cashback_vnd * (o.credit_state = 'credited')::int - coalesce(sum(l.amount_vnd), 0), count(*)
-    into v_delta, v_n from public.wallet_ledger l where l.order_id = o.id;
+    into v_delta, v_n from public.wallet_ledger l
+   where l.order_id = o.id and l.entry_type <> 'admin_adjustment';  -- manual adjustments are not order state
   if v_delta = 0 then return; end if;
   begin
     insert into public.wallet_ledger (user_id, entry_type, amount_vnd, order_id, idempotency_key, available_at, note)
@@ -55,10 +56,12 @@ begin
             case when v_delta > 0 then o.withdrawable_at end, 'order ' || o.credit_state);
   exception when others then
     if sqlerrm <> 'insufficient_balance' then raise; end if;
-    perform private.flag(o.user_id, 'negative_balance_risk', 50,
-      jsonb_build_object('order_id', o.id, 'delta', v_delta), 'nbr:' || o.id || ':' || v_n);
-    perform private.notify_admins('Ví âm nếu hoàn tiền', 'Đơn ' || o.id || ' cần xử lý thủ công',
-      jsonb_build_object('order_id', o.id, 'user_id', o.user_id, 'delta', v_delta));
+    if not exists (select 1 from public.fraud_flags f where f.dedupe_key = 'nbr:' || o.id || ':' || v_n) then
+      perform private.flag(o.user_id, 'negative_balance_risk', 50,
+        jsonb_build_object('order_id', o.id, 'delta', v_delta), 'nbr:' || o.id || ':' || v_n);
+      perform private.notify_admins('Ví âm nếu hoàn tiền', 'Đơn ' || o.id || ' cần xử lý thủ công',
+        jsonb_build_object('order_id', o.id, 'user_id', o.user_id, 'delta', v_delta));
+    end if;
   end;
 end $$;
 
@@ -77,8 +80,9 @@ begin
   if o.credit_state = 'credited' then
     select * into r from public.referrals where referee_id = o.user_id and status = 'pending' for update;
     if not found or o.value_vnd < 200000 then return; end if;
-    v_bonus := least((select (value #>> '{}')::bigint from public.app_settings where key = 'referral_bonus_vnd'),
-                     o.commission_vnd * 30 / 100);
+    v_bonus := greatest(0, least((select (value #>> '{}')::bigint from public.app_settings where key = 'referral_bonus_vnd'),
+                     o.commission_vnd * 30 / 100,
+                     o.commission_vnd - o.user_cashback_vnd));  -- cashback + bonus never exceeds the commission
     select case when exists (select 1 from public.kyc_profiles a join public.kyc_profiles b
                               on a.id_number_hmac = b.id_number_hmac
                             where a.user_id = r.referrer_id and b.user_id = r.referee_id) then 'identity'

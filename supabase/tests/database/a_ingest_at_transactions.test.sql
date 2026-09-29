@@ -4,8 +4,10 @@ select plan(36);
 
 -- fixtures -------------------------------------------------------------------
 insert into public.merchants (id, name, at_campaign_id, hold_days) values
-  ('shopee', 'Shopee', 'shopee', 30), ('zero', 'ZeroHold', 'zerohold', 0);
-insert into public.cashback_rules (merchant_id, category_key, user_share_bps) values (null, null, 5000);
+  ('shopee', 'Shopee', 'shopee', 30), ('zero', 'ZeroHold', 'zerohold', 0)
+  on conflict (id) do update set name = excluded.name, at_campaign_id = excluded.at_campaign_id, hold_days = excluded.hold_days;
+insert into public.cashback_rules (merchant_id, category_key, user_share_bps) values (null, null, 5000)
+  on conflict (merchant_id, category_key) do update set user_share_bps = excluded.user_share_bps;
 insert into auth.users (id, email) values
   ('a0000000-0000-0000-0000-00000000000a', 'a@x.io'), ('b0000000-0000-0000-0000-00000000000b', 'b@x.io');
 insert into auth.users (id, email, raw_user_meta_data)

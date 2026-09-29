@@ -14,6 +14,30 @@ grant select on public.merchants, public.vip_tiers, public.offers, public.produc
   public.price_snapshots, public.vouchers to anon;
 grant insert, update, delete on public.push_tokens to authenticated;
 
+-- Sec-9: owners never see fraud tier, admin ids, commission internals. Column grants (RLS is row-level only);
+-- admins read the full rows through the admin_* views. wallets/notifications stay fully selectable (Realtime).
+do $$
+declare
+  r record;
+begin
+  for r in select * from (values
+    ('withdrawals', array['risk_level', 'claimed_by', 'paid_by']),
+    ('wallet_ledger', array['created_by', 'held_remaining']),
+    ('orders', array['commission_vnd', 'user_share_bps', 'vip_bonus_bps'])) v(t, x)
+  loop
+    execute format('revoke select on public.%I from authenticated', r.t);
+    execute format('grant select (%s) on public.%I to authenticated',
+      (select string_agg(quote_ident(a.attname), ', ') from pg_attribute a
+        where a.attrelid = format('public.%I', r.t)::regclass and a.attnum > 0 and not a.attisdropped
+          and a.attname <> all (r.x)), r.t);
+  end loop;
+end $$;
+
+create view public.admin_withdrawals as select * from public.withdrawals where public.is_admin();
+create view public.admin_orders as select * from public.orders where public.is_admin();
+revoke all on public.admin_withdrawals, public.admin_orders from anon, authenticated;
+grant select on public.admin_withdrawals, public.admin_orders to authenticated;
+
 -- own-row SELECT (or admin)
 do $$
 declare
@@ -35,8 +59,7 @@ begin
   end loop;
   -- admin-only
   for r in select unnest(array['user_risk', 'order_raw', 'cashback_rules', 'campaign_commissions', 'fraud_flags',
-      'admin_audit_log', 'app_settings', 'sync_state', 'sync_errors', 'admins', 'at_rate_bucket',
-      'extension_login_codes']) t
+      'admin_audit_log', 'app_settings', 'sync_state', 'sync_errors', 'admins', 'at_rate_bucket']) t
   loop
     execute format('create policy admin_select on public.%I for select to authenticated
                     using ((select public.is_admin()))', r.t);

@@ -82,4 +82,4 @@ create table public.at_rate_bucket (
   refilled_at timestamptz not null default now()
 );
 insert into public.at_rate_bucket (bucket, tokens, capacity, refill_per_min) values
-  ('transactions', 10, 10, 10), ('product_link', 10, 10, 10), ('datafeeds', 10, 10, 10), ('catalog', 10, 10, 10);
+  ('transactions', 5, 5, 10), ('product_link', 5, 5, 10), ('datafeeds', 5, 5, 10), ('catalog', 5, 5, 10);  -- AT limit is 10/min: burst 5
