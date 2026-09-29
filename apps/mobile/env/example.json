@@ -1,0 +1,10 @@
+{
+  "SUPABASE_URL": "http://10.0.2.2:55321",
+  "SUPABASE_ANON_KEY": "<publishable anon key>",
+  "APP_BASE_URL": "https://canhgia.vn",
+  "GOOGLE_WEB_CLIENT_ID": "<web client id, also set in Supabase Google provider>",
+  "GOOGLE_IOS_CLIENT_ID": "<ios client id>",
+  "TURNSTILE_SITE_KEY": "",
+  "TURNSTILE_TEST_TOKEN": "",
+  "FCM_ENABLED": "false"
+}
