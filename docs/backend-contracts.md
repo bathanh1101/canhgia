@@ -33,3 +33,10 @@ Edge secrets: `ACCESSTRADE_TOKEN, ACCESSTRADE_BASE_URL, CRON_SECRET, FCM_PROJECT
 
 ## Local stack quirk
 Port 54322 is held by another local project → `supabase start` from repo root fails. Scratch workdir `/tmp/claude-1000/wd` (config copy, ports 553xx, `migrations/tests/templates/seed.sql` symlinked) is the working stack: API `http://127.0.0.1:55321`, DB `postgresql://postgres:postgres@127.0.0.1:55322/postgres`. `supabase gen types typescript --db-url <that>` works without the CLI stack.
+
+## Post-review changes (commit 1e4dbb0)
+- `authenticated` has COLUMN-level SELECT on `withdrawals` (no `risk_level, claimed_by, paid_by`), `wallet_ledger` (no `created_by, held_remaining`), `orders` (no `commission_vnd, user_share_bps, vip_bonus_bps`) → clients must list columns explicitly, never `select('*')` on these three tables.
+- Admin UI reads views `public.admin_withdrawals` and `public.admin_orders` (full rows, `is_admin()` gated) instead of the tables.
+- `start_extension_login` raises `invalid_input` `{reason:'field:p_ip'}` on null IP (Edge always passes first-hop `x-forwarded-for`).
+- `at_rate_bucket` capacity 5 (refill 10/min). Stale AT pages (older `update_time`) are `skipped`.
+- Referral bonus = min(setting, 30% commission, commission − user_cashback). Devices capped at 10/user.
