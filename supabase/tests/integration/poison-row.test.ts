@@ -1,71 +1,62 @@
-// Backend integration: bad AT data handling + admin-at-lookup
-import { describe, it, beforeAll, afterAll } from 'jsr:@std/testing@1.0.0/bdd'
+// Backend integration: a bad AT row never blocks its page; stale pages never regress state; admin-at-lookup gate + result.
+import { afterAll, beforeAll, describe, it } from 'jsr:@std/testing@1.0.0/bdd'
 import { assertEquals } from 'jsr:@std/assert@1.0.0'
-import { startMock, makeConversions, type Mock } from '../../functions/tests/mock-accesstrade.ts'
+import { makeConversions, type Mock, startMock } from '../../functions/tests/mock-accesstrade.ts'
+import { createClick, fn, getOrder, resetLimits, setConversions, syncRecent, USERS, userJwt } from './helpers.ts'
 
-const API_URL = Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:55321'
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
-
-const testUsers = {
-  admin: { id: '11111111-1111-1111-1111-111111111111', email: 'admin@test.canhgia.local' },
-  minh: { id: '22222222-2222-2222-2222-222222222222', email: 'minh@test.canhgia.local' },
-}
-
-let mockServer: Mock
-
-beforeAll(async () => {
-  mockServer = startMock({ port: 8787 })
+let mock: Mock
+beforeAll(() => {
+  mock = startMock({ port: 8787 })
 })
+afterAll(() => mock.close())
 
-afterAll(async () => {
-  await mockServer.close()
-})
+const base = Date.now() * 10 // ids from a disjoint range vs sync-cycle, ms resolution so back-to-back runs never collide
 
-async function callFn(name: string, body: unknown, serviceKey?: string) {
-  const headers: Record<string, string> = { 'content-type': 'application/json', apikey: API_URL.includes('127.0.0.1') ? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' : '' }
-  if (serviceKey) headers['x-api-key'] = serviceKey
-  const res = await fetch(`${API_URL}/functions/v1/${name}`, { method: 'POST', headers, body: JSON.stringify(body) })
-  return res.status === 204 ? null : res.json()
-}
-
-async function syncTransactions() {
-  const res = await fetch(`${API_URL}/functions/v1/sync-transactions`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', apikey: SERVICE_KEY },
-    body: JSON.stringify({ window: 'page1' }),
-  })
-  return res.json()
-}
-
-describe('Backend poison-row + admin lookup', () => {
-  it('skips stale conversions (old update_time)', async () => {
-    const fresh = makeConversions(1, 10, { update_time: '2026-09-29T23:00:00Z' })
-    const stale = makeConversions(1, 11, { update_time: '2026-09-01T00:00:00Z', utm_content: fresh[0].utm_content })
-    await fetch(`${mockServer.url}/__control`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ conversions: [...fresh, ...stale] }),
-    })
-
-    const syncRes = await syncTransactions()
-    // Verify only fresh is synced (depends on cursor logic in actual fn)
-    assertEquals(syncRes?.synced_orders > 0, true, 'should sync at least one order')
+describe('poison row + stale page', () => {
+  it('invalid row is counted as error, valid neighbour still ingested', async () => {
+    const click = await createClick(USERS.minh, 'shopee', 'https://shopee.vn/sp-2')
+    const good = makeConversions(1, base, { utm_content: click.utm_content })[0]
+    const bad = makeConversions(1, base + 1, { status: 99 })[0]
+    await setConversions([bad, good])
+    const r = await syncRecent()
+    assertEquals([r.body.inserted, r.body.errors], [1, 1])
+    assertEquals((await getOrder(base))?.credit_state, 'pending')
+    assertEquals(await getOrder(base + 1), undefined)
   })
 
-  it('admin-at-lookup retrieves clicks and AT row', async () => {
-    const clicks = await fetch(`${API_URL}/rest/v1/rpc/create_click`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', apikey: SERVICE_KEY },
-      body: JSON.stringify({ p_user_id: testUsers.minh.id, p_merchant: 'shopee', p_url: 'https://shopee.vn/sp-1', p_offer_url: 'https://shopee.vn/sp-1', p_source: 'app' }),
-    }).then(r => r.json())
+  it('older update_time for a known conversion is skipped, newer state kept', async () => {
+    const click = await createClick(USERS.minh, 'shopee', 'https://shopee.vn/sp-3')
+    const fresh = makeConversions(1, base + 2, { utm_content: click.utm_content, commission: 80000, update_time: '2026-09-29T12:00:00Z' })
+    await setConversions(fresh)
+    await syncRecent()
+    await setConversions(fresh.map((c) => ({ ...c, commission: 1000, update_time: '2026-09-01T00:00:00Z' })))
+    const r = await syncRecent()
+    assertEquals(r.body.skipped, 1)
+    assertEquals((await getOrder(base + 2)).commission_vnd, 80000)
+  })
+})
 
-    const res = await fetch(`${API_URL}/functions/v1/admin-at-lookup`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', apikey: SERVICE_KEY },
-      body: JSON.stringify({ merchant_id: 'shopee', order_code: 'SP0001', purchased_on: '2026-09-27' }),
-    })
-    const data = await res.json()
-    assertEquals(Array.isArray(data.rows), true, 'should return AT transactions')
-    assertEquals(Array.isArray(data.clicks), true, 'should return related clicks')
+describe('admin-at-lookup', () => {
+  const body = { merchant_id: 'shopee', order_code: `ORD${base + 2}`, purchased_on: '2026-09-29' }
+
+  it('no bearer token -> 401', async () => {
+    assertEquals((await fn('admin-at-lookup', body)).status, 401)
+  })
+
+  it('non-admin user -> 403', async () => {
+    assertEquals((await fn('admin-at-lookup', body, { authorization: `Bearer ${await userJwt(USERS.minh, 'aal2')}` })).status, 403)
+  })
+
+  it('admin with aal1 -> 403 (aal2 required)', async () => {
+    assertEquals((await fn('admin-at-lookup', body, { authorization: `Bearer ${await userJwt(USERS.admin, 'aal1')}` })).status, 403)
+  })
+
+  it('admin aal2 -> matching AT row and its click', async () => {
+    await resetLimits()
+    const r = await fn('admin-at-lookup', body, { authorization: `Bearer ${await userJwt(USERS.admin, 'aal2')}` })
+    assertEquals(r.status, 200)
+    assertEquals(r.body.rows.map((x: { transaction_id: string }) => x.transaction_id), [body.order_code])
+    assertEquals(r.body.clicks.length, 1)
+    assertEquals(r.body.clicks[0].user_id, USERS.minh)
   })
 })

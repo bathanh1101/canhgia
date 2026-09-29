@@ -1,73 +1,61 @@
-import { Page, expect } from '@playwright/test'
+import { type Page, expect } from '@playwright/test'
 import * as OTPAuth from 'otpauth'
+import fs from 'node:fs'
+import path from 'node:path'
 
-const testUsers = {
-  admin: { email: 'admin@test.canhgia.local' },
-}
+export const MAILPIT = process.env.MAILPIT_URL ?? 'http://127.0.0.1:55324'
+export const ADMIN_EMAIL = 'admin@test.canhgia.local'
+export const SHOPPER_EMAIL = 'minh@test.canhgia.local'
+export const AUTH_DIR = path.join(__dirname, '..', '.auth')
+export const ADMIN_STATE = path.join(AUTH_DIR, 'admin.json')
+const TOTP_FILE = path.join(AUTH_DIR, 'totp-secret.txt')
 
-const MAILPIT_API_URL = 'http://127.0.0.1:55324/api/v1'
-export const TEST_TOTP_SECRET = 'JBSWY3DPEBLW64TMMQ====='
+export const totpNow = (secret: string) => new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(secret) }).generate()
 
-function generateTOTP(secret: string): string {
-  const totp = new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(secret) })
-  return totp.generate()
-}
-
-/** Fetch 6-digit OTP code from the most recent email to given address via Mailpit API */
-async function fetchOTPFromMailpit(email: string): Promise<string> {
-  const res = await fetch(`${MAILPIT_API_URL}/messages`)
-  const data = (await res.json()) as { messages: Array<{ To: Array<{ Address: string }>; Body: string }> }
-
-  // Find the most recent email to this address
-  const msg = data.messages?.find((m) => m.To?.some((t) => t.Address === email))
-  if (!msg) throw new Error(`No email found to ${email} in Mailpit`)
-
-  // Extract 6-digit code from body (usually in format like "Your code is: 123456")
-  const match = msg.Body.match(/(\d{6})/)
-  if (!match) throw new Error(`No 6-digit code found in email body: ${msg.Body}`)
-  return match[1]
-}
-
-export async function loginAsAdmin(page: Page) {
-  await page.goto('/admin/login')
-
-  // Enter email (uses id="email", not name attribute)
-  await page.fill('input[id="email"]', testUsers.admin.email)
-  await page.click('button:has-text("Gửi mã qua email")')
-
-  // Wait for OTP code input
-  await expect(page.locator('input[id="code"]')).toBeVisible({ timeout: 5000 })
-
-  // Fetch OTP code from Mailpit
-  const code = await fetchOTPFromMailpit(testUsers.admin.email)
-  await page.fill('input[id="code"]', code)
-  await page.click('button:has-text("Đăng nhập")')
-
-  // Check if on MFA enrollment page or overview
-  await page.waitForURL(/\/(admin\/(mfa|mfa-verify|overview)|login)/, { timeout: 5000 })
-  const url = page.url()
-  if (url.includes('/admin/mfa')) {
-    // Enroll TOTP on first login
-    await enrollTOTP(page, TEST_TOTP_SECRET)
-  } else if (url.includes('/admin/mfa-verify')) {
-    // Verify TOTP if already enrolled
-    await enterTOTP(page, TEST_TOTP_SECRET)
+async function latestCodeFor(email: string): Promise<string> {
+  for (let i = 0; i < 30; i++) {
+    const list = (await (await fetch(`${MAILPIT}/api/v1/messages`)).json()) as { messages: { ID: string; To: { Address: string }[] }[] }
+    const hit = list.messages.find((m) => m.To.some((t) => t.Address === email)) // newest first
+    if (hit) {
+      const msg = (await (await fetch(`${MAILPIT}/api/v1/message/${hit.ID}`)).json()) as { Text: string }
+      const code = msg.Text.match(/\b(\d{6})\b/)?.[1]
+      if (code) return code
+    }
+    await new Promise((r) => setTimeout(r, 500))
   }
-
-  // Should be on overview
-  await expect(page).toHaveURL('/admin/overview', { timeout: 5000 })
+  throw new Error(`no OTP mail for ${email} in Mailpit`)
 }
 
-export async function enrollTOTP(page: Page, secret: string) {
-  // Assumes on MFA enroll page; display shows QR code
-  const code = generateTOTP(secret)
-  await page.fill('input[name="totp-code"]', code)
-  await page.click('button:has-text("Verify")')
-  await expect(page).toHaveURL('/admin/overview')
+/** Email OTP step of /admin/login (Turnstile test key auto-passes). Ends on /admin/mfa with an aal1 session. */
+export async function emailOtpLogin(page: Page, email: string) {
+  await fetch(`${MAILPIT}/api/v1/messages`, { method: 'DELETE' }) // so the code we read is the one we just triggered
+  await page.goto('/admin/login')
+  await page.locator('#email').fill(email)
+  const send = page.getByRole('button', { name: 'Gửi mã qua email' })
+  await expect(send).toBeEnabled({ timeout: 20_000 }) // enabled once Turnstile yields a token
+  await send.click()
+  await expect(page.locator('#code')).toBeVisible({ timeout: 15_000 })
+  await page.locator('#code').fill(await latestCodeFor(email))
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click()
+  await page.waitForURL(/\/admin\/(mfa|login\?e=forbidden)/) // non-admins are bounced by /admin/mfa itself
 }
 
-export async function enterTOTP(page: Page, secret: string) {
-  const code = generateTOTP(secret)
-  await page.fill('input[name="totp"]', code)
-  await page.click('button:has-text("Verify")')
+/** Full admin login -> aal2 on /admin/overview. First run enrols TOTP and keeps the secret in e2e/.auth. */
+export async function loginAsAdmin(page: Page) {
+  await emailOtpLogin(page, ADMIN_EMAIL)
+  const enrol = page.getByRole('button', { name: 'Thiết lập ứng dụng xác thực' })
+  let secret: string
+  if (await enrol.isVisible()) {
+    await enrol.click()
+    const hint = await page.getByText(/Hoặc nhập khóa:/).innerText()
+    secret = hint.replace(/^.*:\s*/, '').trim()
+    fs.mkdirSync(AUTH_DIR, { recursive: true })
+    fs.writeFileSync(TOTP_FILE, secret)
+  } else {
+    if (!fs.existsSync(TOTP_FILE)) throw new Error('admin already has a TOTP factor but e2e/.auth/totp-secret.txt is missing: reset the DB (supabase db reset)')
+    secret = fs.readFileSync(TOTP_FILE, 'utf8').trim()
+  }
+  await page.locator('#totp').fill(totpNow(secret))
+  await page.getByRole('button', { name: 'Xác nhận' }).click()
+  await page.waitForURL('**/admin/overview')
 }

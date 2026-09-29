@@ -1,2 +1,5 @@
 next-env.d.ts
 *.tsbuildinfo
+e2e/.auth/
+playwright-report/
+test-results/

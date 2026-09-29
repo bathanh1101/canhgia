@@ -1,55 +1,56 @@
-// Backend integration: extension QR-pair login flow
-import { describe, it } from 'jsr:@std/testing@1.0.0/bdd'
-import { assertEquals, assert } from 'jsr:@std/assert@1.0.0'
+// Backend integration: extension QR-pair login. Contract: docs/backend-contracts.md (extension-login row).
+import { beforeEach, describe, it } from 'jsr:@std/testing@1.0.0/bdd'
+import { assert, assertEquals } from 'jsr:@std/assert@1.0.0'
+import { ANON_KEY, API_URL, fn, resetLimits, sha256hex, USERS, userJwt } from './helpers.ts'
 
-const API_URL = Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:55321'
-const API_KEY = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+async function start() {
+  const secret = crypto.randomUUID()
+  const r = await fn('extension-login', { action: 'start', client_secret_hash: await sha256hex(secret) })
+  assertEquals(r.status, 200)
+  return { secret, ...r.body as { code: string; expires_at: string } }
+}
+const poll = (code: string, client_secret: string) => fn('extension-login', { action: 'poll', code, client_secret })
 
-const testUsers = {
-  minh: { id: '22222222-2222-2222-2222-222222222222', email: 'minh@test.canhgia.local' },
+async function approve(code: string, sub: string) {
+  const res = await fetch(`${API_URL}/rest/v1/rpc/approve_extension_login`, {
+    method: 'POST',
+    headers: { apikey: ANON_KEY, authorization: `Bearer ${await userJwt(sub)}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ p_code: code }),
+  })
+  return res.status
 }
 
-async function callFn(name: string, body: unknown, auth?: string) {
-  const headers: Record<string, string> = { 'content-type': 'application/json', apikey: API_KEY }
-  if (auth) headers.authorization = auth
-  const res = await fetch(`${API_URL}/functions/v1/${name}`, { method: 'POST', headers, body: JSON.stringify(body) })
-  return res.status === 204 ? null : res.json()
-}
-
-describe('Backend extension-login', () => {
-  it('start: generates code + expires_at', async () => {
-    const res = await callFn('extension-login', { action: 'start', client_secret_hash: 'secret_hash' })
-    assertEquals(typeof res.code, 'string', 'should return a code')
-    assert(res.expires_at > new Date().getTime(), 'expires_at should be in future')
+describe('extension-login', () => {
+  beforeEach(resetLimits) // start is limited to 5 codes / IP / 10 min
+  it('start returns a uuid code and a future ISO expires_at', async () => {
+    const s = await start()
+    assert(/^[0-9a-f-]{36}$/.test(s.code))
+    assert(Date.parse(s.expires_at) > Date.now(), `expires_at ${s.expires_at} not in the future`)
   })
 
-  it('poll with wrong secret returns 410', async () => {
-    const start = await callFn('extension-login', { action: 'start', client_secret_hash: 'hash1' })
-    const pollRes = await fetch(`${API_URL}/functions/v1/extension-login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', apikey: API_KEY },
-      body: JSON.stringify({ action: 'poll', code: start.code, client_secret: 'wrong_secret' }),
-    })
-    assertEquals(pollRes.status, 410, 'wrong secret should return 410')
+  it('start rejects a client_secret_hash that is not sha256 hex', async () => {
+    assertEquals((await fn('extension-login', { action: 'start', client_secret_hash: 'secret_hash' })).status, 400)
   })
 
-  it('approve + poll flow', async () => {
-    // Start request
-    const start = await callFn('extension-login', { action: 'start', client_secret_hash: 'hash2' })
-    const code = start.code
+  it('poll before approve -> 202 pending', async () => {
+    const s = await start()
+    const r = await poll(s.code, s.secret)
+    assertEquals([r.status, r.body.status], [202, 'pending'])
+  })
 
-    // Approve as the user (using their JWT)
-    const userJwt = `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsInN1YiI6IjIyMjIyMjIyLTIyMjItMjIyMi0yMjIyLTIyMjIyMjIyMjIyMjIyJ9`
-    const approveRes = await callFn('extension-login', { action: 'approve', code }, userJwt)
-    assertEquals(approveRes?.ok || approveRes?.token_hash, !!approveRes?.token_hash, 'approve should return token_hash')
+  it('poll with the wrong secret -> 410 code_invalid', async () => {
+    const s = await start()
+    const r = await poll(s.code, 'not-the-secret')
+    assertEquals([r.status, r.body.error], [410, 'code_invalid'])
+  })
 
-    // Poll succeeds now (with matching secret)
-    const pollRes = await fetch(`${API_URL}/functions/v1/extension-login`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', apikey: API_KEY },
-      body: JSON.stringify({ action: 'poll', code, client_secret: 'secret_for_hash2' }),
-    })
-    assertEquals(pollRes.status === 200, true, 'poll should succeed after approve')
+  it('approve -> poll returns token_hash once, then 410', async () => {
+    const s = await start()
+    const st = await approve(s.code, USERS.minh)
+    assert(st === 200 || st === 204, `approve status ${st}`)
+    const ok = await poll(s.code, s.secret)
+    assertEquals(ok.status, 200)
+    assertEquals(typeof ok.body.token_hash, 'string')
+    assertEquals((await poll(s.code, s.secret)).status, 410)
   })
 })

@@ -1,123 +1,65 @@
-// Backend integration: sync-transactions cycle (J1/J2 journeys)
-import { describe, it, beforeAll, afterAll } from 'jsr:@std/testing@1.0.0/bdd'
-import { assertEquals, assert } from 'jsr:@std/assert@1.0.0'
-import { startMock, makeConversions, type Mock } from '../../functions/tests/mock-accesstrade.ts'
+// Backend integration: sync-transactions cycle (J1/J2). Real function + real DB, AccessTrade replaced by the mock.
+import { afterAll, beforeAll, describe, it } from 'jsr:@std/testing@1.0.0/bdd'
+import { assert, assertEquals } from 'jsr:@std/assert@1.0.0'
+import { makeConversions, type Mock, startMock } from '../../functions/tests/mock-accesstrade.ts'
+import { createClick, fn, getOrder, getWallet, rest, setConversions, syncRecent, USERS } from './helpers.ts'
 
-const API_URL = Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:55321'
-const API_KEY = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
-const CRON_SECRET = 'super-secret-jwt-token-with-at-least-32-characters-long'
-
-const testUsers = {
-  admin: { id: '11111111-1111-1111-1111-111111111111', email: 'admin@test.canhgia.local' },
-  minh: { id: '22222222-2222-2222-2222-222222222222', email: 'minh@test.canhgia.local' },
-  lan: { id: '33333333-3333-3333-3333-333333333333', email: 'lan@test.canhgia.local' },
-}
-
-let mockServer: Mock
-
-beforeAll(async () => {
-  mockServer = startMock({ port: 8787 })
+let mock: Mock
+beforeAll(() => {
+  mock = startMock({ port: 8787 })
 })
+afterAll(() => mock.close())
 
-afterAll(async () => {
-  await mockServer.close()
-})
+// conversion ids unique per run so reruns never collide with rows from earlier runs
+const base = Date.now()
 
-async function callFn(name: string, body: unknown, authHeader?: string) {
-  const headers: Record<string, string> = { 'content-type': 'application/json', apikey: API_KEY }
-  if (authHeader) headers.authorization = authHeader
-  const res = await fetch(`${API_URL}/functions/v1/${name}`, { method: 'POST', headers, body: JSON.stringify(body) })
-  return res.status === 204 ? null : res.json()
-}
-
-async function syncTransactions() {
-  return callFn('sync-transactions', { window: 'page1' }, `Bearer ${SERVICE_KEY}`)
-}
-
-async function createClick(userId: string, merchant: string, url: string) {
-  const res = await fetch(`${API_URL}/rest/v1/rpc/create_click`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', apikey: SERVICE_KEY },
-    body: JSON.stringify({ p_user_id: userId, p_merchant: merchant, p_url: url, p_offer_url: url, p_source: 'app' }),
-  })
-  return res.json()
-}
-
-async function getWallet(userId: string) {
-  const res = await fetch(`${API_URL}/rest/v1/wallets?id=eq.${userId}`, {
-    headers: { apikey: SERVICE_KEY, prefer: 'return=representation' },
-  })
-  const [row] = await res.json()
-  return row || {}
-}
-
-async function getOrders(userId: string) {
-  const res = await fetch(`${API_URL}/rest/v1/orders?user_id=eq.${userId}&select=id,merchant_id,status,commission_vnd,held_remaining_vnd`, {
-    headers: { apikey: SERVICE_KEY },
-  })
-  return res.json()
-}
-
-describe('Backend sync-transactions', () => {
-  it('J1: sync pending conversion → wallet pending ↑, notification', async () => {
-    // Create a click and emit conversion
-    const click = await createClick(testUsers.minh.id, 'shopee', 'https://shopee.vn/sp-1')
-    const conversions = makeConversions(1, 1, { utm_content: click.utm_content, commission: 150000, status: 0, is_confirmed: 0 })
-    await fetch(`${mockServer.url}/__control`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ conversions }),
-    })
-
-    // Sync and check wallet
-    const syncRes = await syncTransactions()
-    assertEquals((syncRes?.synced_orders || 0) > 0, true)
-
-    const wallet = await getWallet(testUsers.minh.id)
-    assert(wallet.pending_vnd >= 150000, `Expected pending ≥ 150k, got ${wallet.pending_vnd}`)
-
-    // Check order created
-    const orders = await getOrders(testUsers.minh.id)
-    const order = orders.find((o: any) => o.merchant_id === 'shopee')
-    assertEquals(order?.status, 0, 'order status should be 0 (pending)')
+describe('sync-transactions', () => {
+  it('rejects a call without x-cron-secret', async () => {
+    const r = await fn('sync-transactions', { window: 'recent' })
+    assertEquals(r.status, 403)
   })
 
-  it('J2: confirm conversion → held, promote, replay idempotent', async () => {
-    const click = await createClick(testUsers.lan.id, 'tiki', 'https://tiki.vn/tk-1')
-    const conversions = [
-      makeConversions(1, 2, { utm_content: click.utm_content, commission: 100000, status: 0, is_confirmed: 0 })[0],
-    ]
-    await fetch(`${mockServer.url}/__control`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ conversions }),
-    })
+  it('rejects an unknown window', async () => {
+    const r = await fn('sync-transactions', { window: 'page1' }, { 'x-cron-secret': Deno.env.get('CRON_SECRET') ?? '' })
+    assertEquals(r.status, 400)
+  })
 
-    // Sync pending
-    await syncTransactions()
-    let orders = await getOrders(testUsers.lan.id)
-    const orderId = orders.find((o: any) => o.merchant_id === 'tiki')?.id
+  it('J1: pending conversion -> order inserted, wallet pending up, notification', async () => {
+    const click = await createClick(USERS.minh, 'shopee', 'https://shopee.vn/sp-1')
+    const before = (await getWallet(USERS.minh)).pending_vnd
+    await setConversions(makeConversions(1, base, { utm_content: click.utm_content, commission: 150000, status: 0, is_confirmed: 0 }))
 
-    // Flip to confirmed
-    conversions[0].status = 1
-    conversions[0].is_confirmed = 1
-    await fetch(`${mockServer.url}/__control`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ conversions }),
-    })
+    const r = await syncRecent()
+    assertEquals(r.body.inserted, 1)
+    assertEquals(r.body.errors, 0)
 
-    // Sync again
-    await syncTransactions()
-    orders = await getOrders(testUsers.lan.id)
-    const order = orders.find((o: any) => o.id === orderId)
-    assertEquals(order?.status, 1, 'order status should be 1 (held)')
+    const order = await getOrder(base)
+    assertEquals([order.merchant_id, order.user_id, order.at_status, order.credit_state], ['shopee', USERS.minh, 0, 'pending'])
+    assertEquals(order.user_cashback_vnd > 0, true)
+    assertEquals((await getWallet(USERS.minh)).pending_vnd, before + order.user_cashback_vnd)
 
-    // Replay sync - should be idempotent
-    const sync2 = await syncTransactions()
-    const orders2 = await getOrders(testUsers.lan.id)
-    const order2 = orders2.find((o: any) => o.id === orderId)
-    assertEquals(order2?.status, 1, 'second sync should not change status')
+    const n = (await rest(`notifications?user_id=eq.${USERS.minh}&type=eq.order&data->>order_id=eq.${order.id}&select=title,data`)).body
+    assertEquals([n.length, n[0]?.data.state], [1, 'pending'])
+  })
+
+  it('J2: confirm -> credited/held, replay is idempotent', async () => {
+    const click = await createClick(USERS.lan, 'tiki', 'https://tiki.vn/tk-1')
+    const conv = makeConversions(1, base + 1, { utm_content: click.utm_content, merchant: 'tiki', commission: 100000, update_time: '2026-09-29T10:00:00Z' })
+    await setConversions(conv)
+    await syncRecent()
+    assertEquals((await getOrder(base + 1)).credit_state, 'pending')
+
+    const confirmed = conv.map((c) => ({ ...c, status: 1, is_confirmed: 1, update_time: '2026-09-29T11:00:00Z' }))
+    await setConversions(confirmed)
+    const r2 = await syncRecent()
+    assertEquals(r2.body.updated, 1)
+    const order = await getOrder(base + 1)
+    assertEquals(order.credit_state, 'credited')
+    const wallet = await getWallet(USERS.lan)
+
+    const r3 = await syncRecent() // same page again
+    assert(r3.body.skipped >= 1 && r3.body.updated === 0, `replay must skip, got ${JSON.stringify(r3.body)}`)
+    assertEquals(await getWallet(USERS.lan), wallet)
+    assertEquals((await getOrder(base + 1)).user_cashback_vnd, order.user_cashback_vnd)
   })
 })

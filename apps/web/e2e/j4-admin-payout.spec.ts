@@ -1,73 +1,53 @@
-import { test, expect } from '@playwright/test'
-import { loginAsAdmin } from './helpers/admin-helper'
+import { test, expect, type Page } from '@playwright/test'
+import { pg, seedWithdrawal } from './helpers/db'
 
-test.describe('J4: Admin payout workflow', () => {
-  test('admin login → TOTP enrol → aal2 → overview', async ({ page }) => {
-    // Login via helper (handles OTP + TOTP enrollment if needed)
-    await loginAsAdmin(page)
+const row = (page: Page, amount: number) =>
+  page.getByRole('row').filter({ hasText: `${amount.toLocaleString('vi-VN')}đ` })
 
-    // Check we're on overview
-    await expect(page).toHaveURL('/admin/overview')
-    await expect(page.locator('h1, [role="heading"]')).toContainText(/overview|dashboard/i)
+async function pay(page: Page, amount: number, ref: string) {
+  await page.goto('/admin/withdrawals')
+  await row(page, amount).getByRole('button', { name: 'Chuyển khoản' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('Số tài khoản')).toBeVisible()
+  const verify = dialog.getByRole('button', { name: 'Xác nhận tên chủ TK khớp' })
+  if (await verify.isVisible()) await verify.click()
+  await expect(verify).toBeHidden()
+  await dialog.getByLabel('Mã giao dịch ngân hàng').fill(ref)
+  await dialog.getByRole('button', { name: 'Đã chuyển' }).click()
+  return dialog
+}
+
+test.describe('J4: admin payout', () => {
+  // the pending list is global: clear leftovers so rows are ours only
+  test.beforeEach(async () => {
+    await pg('withdrawals?status=in.(pending,processing)', { method: 'DELETE' })
   })
 
-  test('orders assign → withdrawal claim → mark paid', async ({ page }) => {
-    await loginAsAdmin(page)
-
-    // Navigate to orders
-    await page.click('a:has-text("Orders")')
-    await expect(page).toHaveURL(/\/admin\/orders/)
-
-    // Look for unassigned order and assign
-    const row = page.locator('table tbody tr').first()
-    await expect(row).toBeVisible()
-
-    // Click assign or open detail
-    await row.click()
-    const assignBtn = page.locator('button:has-text("Assign")')
-    if (await assignBtn.isVisible()) {
-      await assignBtn.click()
-      await page.fill('input[name="user"]', 'minh@test.canhgia.local')
-      await page.click('button:has-text("Confirm")')
-    }
-
-    // Navigate to withdrawals
-    await page.click('a:has-text("Withdrawals")')
-    await expect(page).toHaveURL(/\/admin\/withdrawals/)
-
-    // Claim a pending withdrawal
-    const wRow = page.locator('table tbody tr').first()
-    if (await wRow.isVisible()) {
-      await wRow.click()
-      const claimBtn = page.locator('button:has-text("Claim")')
-      if (await claimBtn.isVisible()) {
-        await claimBtn.click()
-        await page.fill('input[name="reference"]', 'TRAN123')
-        await page.click('button:has-text("Mark Paid")')
-        await expect(page.locator('text=Success')).toBeVisible()
-      }
-    }
+  test('overview loads for an aal2 admin', async ({ page }) => {
+    await page.goto('/admin/overview')
+    await expect(page.getByRole('heading', { name: 'Tổng quan' })).toBeVisible()
   })
 
-  test('second admin cannot claim same row', async ({ page }) => {
-    // This requires a second admin session; for now just test UI forbids it
-    await loginAsAdmin(page)
-    await page.goto('/admin/withdrawals')
-    const wRow = page.locator('table tbody tr').first()
-    await wRow.click()
+  test('claim -> verify holder name -> mark paid', async ({ page }) => {
+    const w = await seedWithdrawal(51_000)
+    const ref = `FT${Date.now()}`
+    const dialog = await pay(page, 51_000, ref)
+    await expect(dialog).toBeHidden()
+    await expect(page.getByText('Đã đánh dấu đã chuyển khoản')).toBeVisible()
+    const [after] = (await pg(`withdrawals?id=eq.${w.id}&select=status,transfer_ref,paid_by`)).body
+    expect(after).toMatchObject({ status: 'paid', transfer_ref: ref })
+    await expect(row(page, 51_000)).toHaveCount(0) // gone from the pending list
+  })
 
-    const claimBtn = page.locator('button:has-text("Claim")')
-    if (await claimBtn.isVisible()) {
-      await claimBtn.click()
-      // Fill form
-      await page.fill('input[name="reference"]', 'TRAN999')
-      await page.click('button:has-text("Mark Paid")')
-
-      // Close modal, open again - button should say "Already claimed by..."
-      await page.goto('/admin/withdrawals')
-      await wRow.click()
-      const status = page.locator('text=not_claimer|Already claimed')
-      await expect(status).toBeVisible({ timeout: 2000 }).catch(() => {})
-    }
+  test('one bank reference cannot pay two withdrawals', async ({ page }) => {
+    const ref = `FT-DUP-${Date.now()}`
+    const a = await seedWithdrawal(52_000)
+    const b = await seedWithdrawal(53_000)
+    await expect(await pay(page, 52_000, ref)).toBeHidden()
+    await pay(page, 53_000, ref)
+    await expect(page.getByText('Mã giao dịch này đã được dùng cho một yêu cầu khác.')).toBeVisible()
+    const rows = (await pg(`withdrawals?id=in.(${a.id},${b.id})&select=id,status`)).body as { id: string; status: string }[]
+    expect(rows.find((r) => r.id === a.id)?.status).toBe('paid')
+    expect(rows.find((r) => r.id === b.id)?.status).toBe('processing') // claimed, still unpaid
   })
 })

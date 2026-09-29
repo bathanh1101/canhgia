@@ -2,14 +2,16 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
-  fullyParallel: true,
+  globalSetup: './e2e/global-setup.ts',
+  fullyParallel: false, // specs share one database (wallets, pending lists), so they run one at a time
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: 'html',
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
+    storageState: 'e2e/.auth/admin.json', // aal2 admin session from global-setup; unauthenticated specs override it
   },
 
   projects: [

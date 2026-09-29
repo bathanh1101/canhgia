@@ -1,51 +1,47 @@
 import { test, expect } from '@playwright/test'
-import { loginAsAdmin } from './helpers/admin-helper'
+import { pg } from './helpers/db'
 
-test.describe('KPI check', () => {
-  test('admin_overview metrics match SQL computed', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.goto('/admin/overview')
+const VN = 7 * 3600_000 // Asia/Ho_Chi_Minh, no DST
+const day = (ms: number) => new Date(ms + VN).toISOString().slice(0, 10)
+const vnd = (n: number) => `${n.toLocaleString('vi-VN')}đ`
 
-    // Check that stat cards are visible with plausible values
-    const statCards = page.locator('[data-stat-card]')
-    const count = await statCards.count()
-    expect(count).toBeGreaterThan(0)
+test('overview KPI cards equal an independent sum over orders', async ({ page }) => {
+  const to = day(Date.now())
+  const from = day(Date.now() - 300 * 86_400_000)
+  const lo = Date.parse(`${from}T00:00:00+07:00`)
+  const hi = Date.parse(`${to}T00:00:00+07:00`) + 86_400_000
 
-    // Verify each card has a value
-    for (let i = 0; i < count; i++) {
-      const card = statCards.nth(i)
-      const value = await card.locator('[data-stat-value]').textContent()
-      expect(value).toBeTruthy()
-      expect(value).toMatch(/\d+|—/) // Number or dash
-    }
+  const orders = (await pg('orders?select=order_time,created_at,credit_state,value_vnd,commission_vnd&limit=10000')).body as
+    { order_time: string | null; created_at: string; credit_state: string; value_vnd: number; commission_vnd: number }[]
+  const inRange = orders.filter((o) => {
+    const t = Date.parse(o.order_time ?? o.created_at)
+    return t >= lo && t < hi
   })
+  const sum = (f: (o: (typeof inRange)[number]) => boolean, k: 'value_vnd' | 'commission_vnd') =>
+    inRange.filter(f).reduce((a, o) => a + Number(o[k]), 0)
+  const expected = {
+    GMV: sum((o) => ['pending', 'credited'].includes(o.credit_state), 'value_vnd'),
+    'Hoa hồng từ sàn': sum((o) => o.credit_state === 'credited', 'commission_vnd'),
+    'Hoa hồng chờ duyệt': sum((o) => o.credit_state === 'pending', 'commission_vnd'),
+  }
+  expect(inRange.length).toBeGreaterThan(0) // the check is vacuous on an empty DB
 
-  test('overview chart renders', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.goto('/admin/overview')
+  await page.goto(`/admin/overview?from=${from}&to=${to}`)
+  for (const [label, value] of Object.entries(expected)) {
+    const card = page.locator('div[title]').filter({ has: page.getByText(label, { exact: true }) }).first()
+    await expect(card, label).toContainText(vnd(value))
+  }
+})
 
-    // Look for chart elements (recharts or svg)
-    const chart = page.locator('svg[role="img"], [data-chart]')
-    await expect(chart).toBeVisible({ timeout: 2000 }).catch(() => {})
-  })
-
-  test('pagination and filtering work', async ({ page }) => {
-    await loginAsAdmin(page)
-    await page.goto('/admin/orders')
-
-    // Test pagination
-    const pageInput = page.locator('input[name="page"]')
-    if (await pageInput.isVisible()) {
-      await pageInput.fill('2')
-      await pageInput.press('Enter')
-      await page.waitForLoadState('networkidle')
-    }
-
-    // Test status filter
-    const statusSelect = page.locator('select[name="status"]')
-    if (await statusSelect.isVisible()) {
-      await statusSelect.selectOption({ value: 'pending' })
-      await page.waitForLoadState('networkidle')
-    }
-  })
+test('orders table: status filter narrows the list and the count in the header', async ({ page }) => {
+  await page.goto('/admin/orders')
+  const count = async () => Number((await page.getByText(/đơn khớp bộ lọc/).innerText()).match(/(\d+)/)![1])
+  const all = await count()
+  await page.getByLabel('Trạng thái').selectOption({ label: 'Đã cộng tiền' })
+  await page.getByRole('button', { name: 'Lọc' }).click()
+  await page.waitForURL(/credit_state=|status=|state=/)
+  const credited = await count()
+  expect(credited).toBeLessThan(all)
+  const want = (await pg('orders?credit_state=eq.credited&select=id')).body.length
+  expect(credited).toBe(want)
 })
