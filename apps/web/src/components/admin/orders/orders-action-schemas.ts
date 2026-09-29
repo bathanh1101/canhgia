@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const assignSchema = z.object({ orderId: z.uuid(), userId: z.uuid() });
+// z.guid(), not z.uuid(): zod 4 uuid() enforces RFC version/variant bits, which rejects valid Postgres uuids such as the dev-seed users (33333333-3333-3333-...). The DB uuid type is the real check.
+export const assignSchema = z.object({ orderId: z.guid(), userId: z.guid() });
 
 /** short_id search is numeric; otherwise email fragment. */
 export const userSearchSchema = z.string().trim().min(2).max(64);
