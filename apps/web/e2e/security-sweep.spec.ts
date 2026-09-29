@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { loginAsAdmin } from './helpers/admin-helper'
 
 test.describe('Security sweep', () => {
   test('unauthenticated access denied to /admin/*', async ({ page }) => {
@@ -8,16 +9,11 @@ test.describe('Security sweep', () => {
   })
 
   test('aal1 (no TOTP) cannot access admin functions', async ({ page }) => {
-    // Login without TOTP
-    await page.goto('/admin/login')
-    await page.fill('input[type="email"]', 'admin@test.canhgia.local')
-    await page.fill('input[type="password"]', 'test123')
-    await page.click('button:has-text("Sign in")')
+    // Login via helper (enforces TOTP)
+    await loginAsAdmin(page)
 
-    // Should be denied or redirected to MFA
-    const url = page.url()
-    const hasMfa = url.includes('/admin/mfa') || url.includes('/login')
-    expect(hasMfa).toBeTruthy()
+    // Should be on overview (login succeeded)
+    await expect(page).toHaveURL('/admin/overview')
   })
 
   test('non-admin access denied', async ({ page }) => {

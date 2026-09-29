@@ -48,7 +48,7 @@ export function startMock(o: { port?: number; clock?: () => number } = {}): Mock
   const hit = new Map<string, number>()
   const jr = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'content-type': 'application/json' } })
 
-  const server = Deno.serve({ port: o.port ?? 0, onListen: () => {} }, async (req) => {
+  const server = Deno.serve({ port: o.port ?? 0, hostname: '0.0.0.0', onListen: () => {} }, async (req) => {
     const u = new URL(req.url)
     const params = Object.fromEntries(u.searchParams)
     const body = req.method === 'POST' ? await req.json().catch(() => null) : null
