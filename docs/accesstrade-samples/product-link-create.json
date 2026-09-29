@@ -1,5 +1,5 @@
 {
-  "_source": "research-01 documented shape, not a live response",
+  "_source": "docs shape, POST not run",
   "request": {
     "campaign_id": "4348614231480407268",
     "urls": [
@@ -23,5 +23,29 @@
       "suspend_url": []
     },
     "success": true
+  },
+  "tiktok_v2_create_link": {
+    "_source": "docs shape, POST not run",
+    "method_url": "POST https://api.accesstrade.vn/v2/tiktokshop_product_feeds/create_link",
+    "request": {
+      "product_url": "https://vt.tiktok.com/<code>/",
+      "utm_source": "canhgia",
+      "utm_content": "u1c1",
+      "sub1": "c1"
+    },
+    "response_ok": {
+      "data": {
+        "aff_short_url": "https://shorten.example/EXAMPLE",
+        "aff_url": "https://tracking.example/deep_link/EXAMPLE",
+        "product_commission": {
+          "amount": "3.000",
+          "currency": "VND",
+          "rate": 1500
+        },
+        "product_id": "EXAMPLE"
+      },
+      "message": "create link affiliate success",
+      "status": true
+    }
   }
 }
