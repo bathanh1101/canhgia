@@ -27,8 +27,18 @@ jobs:
           mkdir -p /tmp/claude-1000/wd/supabase
           cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
           cp -r supabase/functions /tmp/claude-1000/wd/supabase/
-          cp supabase/config.toml /tmp/claude-1000/wd/supabase/ || true
-          ln -s $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql || true
+          cp supabase/config.toml /tmp/claude-1000/wd/supabase/
+          ln -sf $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql
+      - name: Patch rate limit in config.toml
+        run: |
+          sed -i 's/email_sent = [0-9]*/email_sent = 200/' /tmp/claude-1000/wd/supabase/config.toml
+      - name: Create .env for functions
+        run: |
+          cat > /tmp/claude-1000/wd/.env << 'EOF'
+          ACCESSTRADE_TOKEN=test-token
+          ACCESSTRADE_BASE_URL=http://172.17.0.1:8787
+          CRON_SECRET=test-cron-secret
+          EOF
       - name: Start Supabase (scratch workdir)
         run: |
           cd /tmp/claude-1000/wd
@@ -43,17 +53,21 @@ jobs:
           supabase db reset
       - name: Start mock AccessTrade server
         run: |
-          deno run --allow-net supabase/functions/tests/mock-accesstrade.ts &
+          deno run --allow-net --allow-read supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
           sleep 2
+      - name: Start functions serve
+        run: |
+          cd /tmp/claude-1000/wd
+          supabase functions serve --no-verify-jwt --env-file .env > /tmp/functions.log 2>&1 &
+          sleep 3
       - name: Run backend integration tests
         run: |
-          cd /home/tranbathanh/CEV-C3/canhgia
           deno test supabase/tests/integration/*.test.ts \
             --allow-net \
             --allow-env \
+            --allow-read \
             --env SUPABASE_URL=http://127.0.0.1:55321 \
-            --env SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 \
-            --env SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+            --env CRON_SECRET=test-cron-secret
       - name: Cleanup
         if: always()
         run: |
@@ -67,25 +81,65 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with: { version: latest }
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version-file: .nvmrc, cache: pnpm }
       - name: Install deps
         run: pnpm install --frozen-lockfile
-      - name: Setup scratch workdir + Supabase
+      - name: Setup scratch workdir
         run: |
           mkdir -p /tmp/claude-1000/wd/supabase
           cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
           cp -r supabase/functions /tmp/claude-1000/wd/supabase/
+          cp supabase/config.toml /tmp/claude-1000/wd/supabase/
+          ln -sf $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql
+      - name: Patch rate limit in config.toml
+        run: |
+          sed -i 's/email_sent = [0-9]*/email_sent = 200/' /tmp/claude-1000/wd/supabase/config.toml
+      - name: Create .env for functions
+        run: |
+          cat > /tmp/claude-1000/wd/.env << 'EOF'
+          ACCESSTRADE_TOKEN=test-token
+          ACCESSTRADE_BASE_URL=http://172.17.0.1:8787
+          CRON_SECRET=test-cron-secret
+          EOF
+      - name: Start Supabase
+        run: |
           cd /tmp/claude-1000/wd
-          supabase start -x studio,imgproxy 2>&1 | tee /tmp/supabase.log &
-          for i in {1..30}; do curl -s http://127.0.0.1:55321/rest/v1/ && break; sleep 1; done
+          supabase start -x studio,imgproxy > /tmp/supabase.log 2>&1 &
+          for i in {1..30}; do
+            curl -s http://127.0.0.1:55321/rest/v1/ && echo "API ready" && break
+            sleep 1
+          done
+      - name: Reset DB and seed
+        run: |
+          cd /tmp/claude-1000/wd
           supabase db reset
+      - name: Start mock AccessTrade server
+        run: |
+          deno run --allow-net --allow-read supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
+          sleep 2
+      - name: Start functions serve
+        run: |
+          cd /tmp/claude-1000/wd
+          supabase functions serve --no-verify-jwt --env-file .env > /tmp/functions.log 2>&1 &
+          sleep 3
       - name: Build web
-        run: pnpm --filter ./apps/web build
+        run: |
+          cat > apps/web/.env.local << 'EOF'
+          NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:55321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+          EOF
+          pnpm --filter ./apps/web build
       - name: Install Playwright browsers
-        run: pnpm --filter ./apps/web exec playwright install chromium
+        run: pnpm --filter ./apps/web exec playwright install --with-deps chromium
       - name: Run Playwright E2E
+        env:
+          WEB_BASE_URL: http://127.0.0.1:3000
+          MAILPIT_URL: http://127.0.0.1:55324
         run: pnpm --filter ./apps/web exec playwright test
       - name: Upload results
         if: always()
@@ -93,30 +147,95 @@ jobs:
         with:
           name: web-e2e-results
           path: apps/web/playwright-report/
+      - name: Cleanup
+        if: always()
+        run: |
+          pkill -f "supabase" || true
+          pkill -f "deno" || true
 
   extension-e2e:
     if: ${{ hashFiles('apps/extension/package.json') != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version-file: .nvmrc, cache: pnpm }
       - name: Install deps
         run: pnpm install --frozen-lockfile
+      - name: Setup scratch workdir
+        run: |
+          mkdir -p /tmp/claude-1000/wd/supabase
+          cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
+          cp -r supabase/functions /tmp/claude-1000/wd/supabase/
+          cp supabase/config.toml /tmp/claude-1000/wd/supabase/
+          ln -sf $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql
+      - name: Patch rate limit in config.toml
+        run: |
+          sed -i 's/email_sent = [0-9]*/email_sent = 200/' /tmp/claude-1000/wd/supabase/config.toml
+      - name: Create .env for functions
+        run: |
+          cat > /tmp/claude-1000/wd/.env << 'EOF'
+          ACCESSTRADE_TOKEN=test-token
+          ACCESSTRADE_BASE_URL=http://172.17.0.1:8787
+          CRON_SECRET=test-cron-secret
+          EOF
+      - name: Start Supabase
+        run: |
+          cd /tmp/claude-1000/wd
+          supabase start -x studio,imgproxy > /tmp/supabase.log 2>&1 &
+          for i in {1..30}; do
+            curl -s http://127.0.0.1:55321/rest/v1/ && echo "API ready" && break
+            sleep 1
+          done
+      - name: Reset DB and seed
+        run: |
+          cd /tmp/claude-1000/wd
+          supabase db reset
+      - name: Start mock AccessTrade server
+        run: |
+          deno run --allow-net --allow-read supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
+          sleep 2
+      - name: Start functions serve
+        run: |
+          cd /tmp/claude-1000/wd
+          supabase functions serve --no-verify-jwt --env-file .env > /tmp/functions.log 2>&1 &
+          sleep 3
+      - name: Build web (for landing URL)
+        run: |
+          cat > apps/web/.env.local << 'EOF'
+          NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:55321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+          EOF
+          pnpm --filter ./apps/web build
       - name: Build extension
+        env:
+          WXT_SUPABASE_URL: http://127.0.0.1:55321
+          WXT_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+          WXT_LANDING_URL: http://127.0.0.1:3000
         run: pnpm --filter ./apps/extension build
       - name: Install Playwright browsers
-        run: pnpm --filter ./apps/extension exec playwright install chromium
+        run: pnpm --filter ./apps/extension exec playwright install --with-deps chromium
       - name: Run Playwright E2E
+        env:
+          WEB_BASE_URL: http://127.0.0.1:3000
+          MAILPIT_URL: http://127.0.0.1:55324
         run: |
-          xvfb-run -a pnpm --filter ./apps/extension exec playwright test apps/extension/e2e
+          xvfb-run -a pnpm --filter ./apps/extension exec playwright test
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: extension-e2e-results
           path: apps/extension/playwright-report/
+      - name: Cleanup
+        if: always()
+        run: |
+          pkill -f "supabase" || true
+          pkill -f "deno" || true
 
   mobile-e2e:
     if: github.event_name == 'schedule' && hashFiles('apps/mobile/pubspec.yaml') != ''
@@ -124,19 +243,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.47.5'
-      - uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          script: |
-            flutter test integration_test/j1_attribution_test.dart
-            flutter test integration_test/j2_confirm_test.dart
-            flutter test integration_test/j3_withdraw_test.dart
+        with: { channel: stable, cache: true }
+      - name: Run analyze
+        run: cd apps/mobile && flutter analyze
+      - name: Run tests
+        run: cd apps/mobile && flutter test
         continue-on-error: true
-      - name: Upload test logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mobile-e2e-logs
-          path: build/

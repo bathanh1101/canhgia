@@ -6,5 +6,8 @@ export default defineConfig({
   testDir: './e2e',
   workers: 1, // one browser with the extension at a time; specs share the local database
   timeout: 60_000,
-  reporter: 'list',
+  reporter: 'html',
+  use: {
+    baseURL: process.env.WEB_BASE_URL ?? 'http://localhost:3000',
+  },
 })
