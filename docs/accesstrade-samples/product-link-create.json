@@ -1,0 +1,27 @@
+{
+  "_source": "research-01 documented shape, not a live response",
+  "request": {
+    "campaign_id": "4348614231480407268",
+    "urls": [
+      "https://shopee.vn/m/ma-giam-gia"
+    ],
+    "utm_source": "canhgia",
+    "utm_content": "u1c1",
+    "sub1": "c1"
+  },
+  "response": {
+    "data": {
+      "error_link": [],
+      "success_link": [
+        {
+          "aff_link": "https://tracking.example/deep_link/EXAMPLE",
+          "first_link": null,
+          "short_link": "https://shorten.example/EXAMPLE",
+          "url_origin": "https://shopee.vn"
+        }
+      ],
+      "suspend_url": []
+    },
+    "success": true
+  }
+}

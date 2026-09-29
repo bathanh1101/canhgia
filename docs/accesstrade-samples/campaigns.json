@@ -1,0 +1,16 @@
+{
+  "_source": "research-01 documented shape, not a live response",
+  "data": [
+    {
+      "id": "4348614231480407268",
+      "merchant": "shopee",
+      "name": "Shopee VN",
+      "approval": "successful",
+      "status": 1,
+      "cookie_duration": "EXAMPLE",
+      "description": "EXAMPLE"
+    }
+  ],
+  "total": 1,
+  "_note": "endpoint/fields INFERRED in research-01 (not read from docs)"
+}

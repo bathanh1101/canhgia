@@ -1,0 +1,16 @@
+graphify-out/
+node_modules/
+.next/
+.output/
+.wxt/
+.env*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+supabase/functions/.env
+apps/mobile/build/
+apps/mobile/.dart_tool/
+apps/mobile/env/*.json
+!apps/mobile/env/example.json
+*.jks
+key.properties

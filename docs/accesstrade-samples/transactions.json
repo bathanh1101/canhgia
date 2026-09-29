@@ -1,0 +1,42 @@
+{
+  "_source": "research-01 documented shape, not a live response",
+  "total": 1,
+  "data": [
+    {
+      "id": "hash-example",
+      "transaction_id": "ORDER-EXAMPLE",
+      "conversion_id": 100001,
+      "merchant": "tikivn",
+      "status": 0,
+      "is_confirmed": 0,
+      "click_time": "2026-09-01T10:00:00Z",
+      "transaction_time": "2026-09-01T10:30:00Z",
+      "update_time": "2026-09-01T10:30:00Z",
+      "confirmed_time": null,
+      "transaction_value": 250000,
+      "commission": 12500,
+      "product_id": "P1",
+      "product_name": "Sản phẩm mẫu",
+      "product_price": 250000,
+      "product_quantity": 1,
+      "product_image": "",
+      "product_category": "",
+      "category_name": "",
+      "utm_source": "canhgia",
+      "utm_medium": "",
+      "utm_campaign": "",
+      "utm_content": "u1c1",
+      "utm_term": "",
+      "conversion_platform": "app",
+      "customer_type": "new",
+      "is_brand_bonus": 0,
+      "reason_rejected": "",
+      "click_url": "https://tiki.vn/example",
+      "_extra": {
+        "device_type": "mobile",
+        "os": "Android",
+        "browser": "Chrome"
+      }
+    }
+  ]
+}

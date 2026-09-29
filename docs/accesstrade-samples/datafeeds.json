@@ -1,0 +1,23 @@
+{
+  "_source": "research-01 documented shape, not a live response",
+  "data": [
+    {
+      "name": "Sản phẩm mẫu",
+      "price": 199000,
+      "discount": 249000,
+      "discount_amount": 50000,
+      "discount_rate": 20,
+      "status_discount": 1,
+      "sku": "SKU1",
+      "product_id": "P1",
+      "url": "https://www.lazada.vn/example",
+      "aff_link": "https://tracking.example/EXAMPLE",
+      "image": "https://example.com/i.jpg",
+      "domain": "lazada.vn",
+      "campaign": "lazada",
+      "cate": "EXAMPLE",
+      "update_time": "2026-09-01T00:00:00Z"
+    }
+  ],
+  "total": 1
+}

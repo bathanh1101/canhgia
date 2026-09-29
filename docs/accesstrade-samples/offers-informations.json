@@ -1,0 +1,23 @@
+{
+  "_source": "research-01 documented shape, not a live response",
+  "data": [
+    {
+      "name": "Voucher mẫu",
+      "content": "EXAMPLE",
+      "merchant": "tikivn",
+      "domain": "tiki.vn",
+      "start_time": "2026-09-01",
+      "end_time": "2026-09-30",
+      "coupons": [
+        {
+          "coupon_code": "EXAMPLE10",
+          "coupon_desc": "Giảm 10%"
+        }
+      ],
+      "link": "https://tracking.example/EXAMPLE",
+      "banners": [],
+      "image": ""
+    }
+  ],
+  "_note": "endpoint/fields INFERRED in research-01 (not verified)"
+}

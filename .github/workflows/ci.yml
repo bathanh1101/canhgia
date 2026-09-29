@@ -1,0 +1,68 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  supabase:
+    if: ${{ hashFiles('supabase/migrations/*.sql') != '' }}
+    runs-on: ubuntu-latest
+    env:
+      TURNSTILE_SECRET: 1x0000000000000000000000000000000AA
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ci
+      SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - run: supabase start -x studio,imgproxy
+      - run: supabase db reset
+      - run: supabase test db
+      - run: bash supabase/tests/concurrency/withdraw-race.sh
+        if: ${{ hashFiles('supabase/tests/concurrency/withdraw-race.sh') != '' }}
+      - run: deno test supabase/functions
+        if: ${{ hashFiles('supabase/functions/**/*.test.ts') != '' }}
+
+  web:
+    if: ${{ hashFiles('apps/web/package.json') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./apps/web lint
+      - run: pnpm --filter ./apps/web typecheck
+      - run: pnpm --filter ./apps/web test
+      - run: pnpm --filter ./apps/web build
+
+  extension:
+    if: ${{ hashFiles('apps/extension/package.json') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./apps/extension lint
+      - run: pnpm --filter ./apps/extension typecheck
+      - run: pnpm --filter ./apps/extension test
+      - run: pnpm --filter ./apps/extension build
+
+  mobile:
+    if: ${{ hashFiles('apps/mobile/pubspec.yaml') != '' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
