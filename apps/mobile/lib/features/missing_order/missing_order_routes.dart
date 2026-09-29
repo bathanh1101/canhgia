@@ -1,10 +1,8 @@
 import 'package:go_router/go_router.dart';
 
 import '../../app/route_paths.dart';
-import '../../core/widgets/placeholder_page.dart';
+import 'presentation/missing_order_screen.dart';
 
-/// HANDOFF STUB from phase 04: replace the placeholder builders with the real screens.
-/// Keep the exported list name; app/router.dart registers it.
 final List<RouteBase> missingOrderRoutes = [
-  GoRoute(path: RoutePaths.missingOrder, builder: (context, state) => const PlaceholderPage('Báo đơn bị thiếu')),
+  GoRoute(path: RoutePaths.missingOrder, builder: (context, state) => const MissingOrderScreen()),
 ];

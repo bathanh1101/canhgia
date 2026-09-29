@@ -1,10 +1,20 @@
 import 'package:go_router/go_router.dart';
 
 import '../../app/route_paths.dart';
-import '../../core/widgets/placeholder_page.dart';
+import 'application/pin_state.dart';
+import 'presentation/pin_screen.dart';
 
-/// HANDOFF STUB from phase 04: replace the placeholder builders with the real screens.
-/// Keep the exported list name; app/router.dart registers it.
+/// `/pin?mode=verify|create|change|reset[&return=pin]`; `extra` (String) = verify subtitle.
 final List<RouteBase> pinRoutes = [
-  GoRoute(path: RoutePaths.pin, builder: (context, state) => const PlaceholderPage('Mã PIN')),
+  GoRoute(
+    path: RoutePaths.pin,
+    builder: (context, state) {
+      final q = state.uri.queryParameters;
+      final extra = state.extra;
+      return PinScreen(
+        args: (mode: PinMode.parse(q['mode']), returnPin: q['return'] == 'pin'),
+        hint: extra is String ? extra : null,
+      );
+    },
+  ),
 ];

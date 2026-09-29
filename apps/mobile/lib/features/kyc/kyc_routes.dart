@@ -1,10 +1,12 @@
 import 'package:go_router/go_router.dart';
 
 import '../../app/route_paths.dart';
-import '../../core/widgets/placeholder_page.dart';
+import 'presentation/kyc_screen.dart';
 
-/// HANDOFF STUB from phase 04: replace the placeholder builders with the real screens.
-/// Keep the exported list name; app/router.dart registers it.
+/// `/kyc[?step=1|2|3]`; without `step` it resumes at the first incomplete step.
 final List<RouteBase> kycRoutes = [
-  GoRoute(path: RoutePaths.kyc, builder: (context, state) => const PlaceholderPage('Xác thực định danh')),
+  GoRoute(
+    path: RoutePaths.kyc,
+    builder: (context, state) => KycScreen(initialStep: int.tryParse(state.uri.queryParameters['step'] ?? '')),
+  ),
 ];
