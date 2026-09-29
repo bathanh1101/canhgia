@@ -102,3 +102,14 @@ Vercel instant rollback. Functions: redeploy previous commit (`git checkout <sha
 - [ ] Turnstile prod keys; Resend domain verified; auth rate limits raised.
 - [ ] Staging probe: which header carries client IP on hosted Edge (`extension-login` uses first hop of `x-forwarded-for`).
 - [ ] Run the security sweep from phase 11 against prod with test accounts (then delete them).
+
+## Local e2e stack (what the suites assume)
+Working dir = scratch copy (see `backend-contracts.md` "Local stack quirk"); ports 553xx.
+- `config.toml`: `[auth.rate_limit] email_sent = 200` (default 2/hour blocks the OTP logins the web/extension suites need). Restart with `supabase stop && supabase start`.
+- Edge functions: `supabase functions serve --no-verify-jwt --env-file <wd>/.env` from the scratch dir, `.env` = `ACCESSTRADE_TOKEN`, `ACCESSTRADE_BASE_URL=http://172.17.0.1:8787` (mock AT, reachable from the container), `CRON_SECRET`. `supabase start` alone loads only `supabase/functions/.env` (your real-AT values). After editing functions, re-copy them into the scratch dir.
+- Keys: the CLI's local `ANON_KEY` / `SERVICE_ROLE_KEY` (`supabase status -o env`, public supabase-demo JWTs). Keys signed for another JWT secret give `UNAUTHORIZED_LEGACY_JWT` / `PGRST301`.
+- Web: `apps/web/.env.local` needs `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:55321`, the publishable key and `NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA`; `pnpm build && pnpm start`.
+- Mock AT: `deno run --allow-net --allow-read supabase/functions/tests/mock-accesstrade.ts`-style `startMock({port: 8787})` (the Deno integration tests start it themselves; stop any standalone copy first, the extension bar test needs one running).
+- Seed users (`seed.sql`) carry `aud/role/email_confirmed_at/identities`; without them GoTrue answers `otp_disabled` (user not found) or 500 "Database error finding user".
+- Run: `CRON_SECRET=<wd .env value> deno test --allow-net --allow-env --no-check supabase/tests/integration/*.test.ts`; `pnpm --filter web exec playwright test` (one aal2 login per run, TOTP secret cached in `apps/web/e2e/.auth`, git-ignored); extension: build with `WXT_SUPABASE_URL=http://127.0.0.1:55321 WXT_SUPABASE_PUBLISHABLE_KEY=<anon> WXT_LANDING_URL=http://localhost:3000 pnpm --filter extension build`, then `pnpm --filter extension e2e`.
+- After `supabase db reset` delete `apps/web/e2e/.auth` (the admin TOTP factor is gone).
