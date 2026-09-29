@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "std/": "https://deno.land/std@0.217/",
+    "@std/": "https://deno.land/std@0.217/",
+    "@std/testing": "https://deno.land/std@0.217/testing/",
+    "@std/assert": "https://deno.land/std@0.217/assert/"
+  },
+  "tasks": {
+    "test": "deno test --allow-net --allow-env supabase/tests/",
+    "test:integration": "deno test --allow-net --allow-env supabase/tests/integration/*.test.ts"
+  }
+}

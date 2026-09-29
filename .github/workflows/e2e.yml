@@ -1,0 +1,142 @@
+name: e2e
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *' # Nightly at 02:00 UTC
+
+env:
+  TURNSTILE_SECRET: 1x0000000000000000000000000000000AA
+  SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ci
+  SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: ci
+
+jobs:
+  backend-integration:
+    if: ${{ hashFiles('supabase/migrations/*.sql') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - name: Setup scratch workdir
+        run: |
+          mkdir -p /tmp/claude-1000/wd/supabase
+          cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
+          cp -r supabase/functions /tmp/claude-1000/wd/supabase/
+          cp supabase/config.toml /tmp/claude-1000/wd/supabase/ || true
+          ln -s $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql || true
+      - name: Start Supabase (scratch workdir)
+        run: |
+          cd /tmp/claude-1000/wd
+          supabase start -x studio,imgproxy 2>&1 | tee /tmp/supabase.log &
+          for i in {1..30}; do
+            curl -s http://127.0.0.1:55321/rest/v1/ && echo "API ready" && break
+            sleep 1
+          done
+      - name: Reset DB and seed
+        run: |
+          cd /tmp/claude-1000/wd
+          supabase db reset
+      - name: Start mock AccessTrade server
+        run: |
+          deno run --allow-net supabase/functions/tests/mock-accesstrade.ts &
+          sleep 2
+      - name: Run backend integration tests
+        run: |
+          cd /home/tranbathanh/CEV-C3/canhgia
+          deno test supabase/tests/integration/*.test.ts \
+            --allow-net \
+            --allow-env \
+            --env SUPABASE_URL=http://127.0.0.1:55321 \
+            --env SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 \
+            --env SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+      - name: Cleanup
+        if: always()
+        run: |
+          pkill -f "supabase" || true
+          pkill -f "deno" || true
+
+  web-e2e:
+    if: ${{ hashFiles('apps/web/package.json') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Setup scratch workdir + Supabase
+        run: |
+          mkdir -p /tmp/claude-1000/wd/supabase
+          cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
+          cp -r supabase/functions /tmp/claude-1000/wd/supabase/
+          cd /tmp/claude-1000/wd
+          supabase start -x studio,imgproxy 2>&1 | tee /tmp/supabase.log &
+          for i in {1..30}; do curl -s http://127.0.0.1:55321/rest/v1/ && break; sleep 1; done
+          supabase db reset
+      - name: Build web
+        run: pnpm --filter ./apps/web build
+      - name: Install Playwright browsers
+        run: pnpm --filter ./apps/web exec playwright install chromium
+      - name: Run Playwright E2E
+        run: pnpm --filter ./apps/web exec playwright test
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-e2e-results
+          path: apps/web/playwright-report/
+
+  extension-e2e:
+    if: ${{ hashFiles('apps/extension/package.json') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Build extension
+        run: pnpm --filter ./apps/extension build
+      - name: Install Playwright browsers
+        run: pnpm --filter ./apps/extension exec playwright install chromium
+      - name: Run Playwright E2E
+        run: |
+          xvfb-run -a pnpm --filter ./apps/extension exec playwright test apps/extension/e2e
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-e2e-results
+          path: apps/extension/playwright-report/
+
+  mobile-e2e:
+    if: github.event_name == 'schedule' && hashFiles('apps/mobile/pubspec.yaml') != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          script: |
+            flutter test integration_test/j1_attribution_test.dart
+            flutter test integration_test/j2_confirm_test.dart
+            flutter test integration_test/j3_withdraw_test.dart
+        continue-on-error: true
+      - name: Upload test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-e2e-logs
+          path: build/
