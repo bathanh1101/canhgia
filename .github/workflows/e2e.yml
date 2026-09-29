@@ -21,35 +21,19 @@ jobs:
         with: { version: latest }
       - uses: denoland/setup-deno@v2
         with: { deno-version: v2.x }
-      - name: Setup scratch workdir
-        run: |
-          mkdir -p /tmp/claude-1000/wd/supabase
-          cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
-          cp -r supabase/functions /tmp/claude-1000/wd/supabase/
-          cp supabase/config.toml /tmp/claude-1000/wd/supabase/
-          cp -r supabase/templates /tmp/claude-1000/wd/supabase/
-          ln -sf $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql
-      - name: Patch rate limit in config.toml
-        run: |
-          sed -i 's/email_sent = [0-9]*/email_sent = 200/' /tmp/claude-1000/wd/supabase/config.toml
+      - name: Patch GoTrue email rate limit for CI
+        run: sed -i 's/email_sent = [0-9]*/email_sent = 200/' supabase/config.toml
       - name: Create .env for functions
         run: |
-          cat > /tmp/claude-1000/wd/.env << 'EOF'
+          cat > supabase/functions/.env.ci << 'EOF'
           ACCESSTRADE_TOKEN=test-token
           ACCESSTRADE_BASE_URL=http://172.17.0.1:8787
           CRON_SECRET=test-cron-secret
           EOF
-      - name: Start Supabase (scratch workdir)
-        run: |
-          cd /tmp/claude-1000/wd
-          supabase start -x studio,imgproxy 2>&1 | tee /tmp/supabase.log &
-          for i in {1..30}; do
-            curl -s http://127.0.0.1:55321/rest/v1/ && echo "API ready" && break
-            sleep 1
-          done
+      - name: Start Supabase
+        run: supabase start -x studio,imgproxy
       - name: Reset DB and seed
         run: |
-          cd /tmp/claude-1000/wd
           supabase db reset
       - name: Start mock AccessTrade server
         run: |
@@ -57,16 +41,15 @@ jobs:
           sleep 2
       - name: Start functions serve
         run: |
-          cd /tmp/claude-1000/wd
-          supabase functions serve --no-verify-jwt --env-file .env > /tmp/functions.log 2>&1 &
-          sleep 3
+          supabase functions serve --no-verify-jwt --env-file supabase/functions/.env.ci > /tmp/functions.log 2>&1 &
+          for i in {1..30}; do curl -s -o /dev/null http://127.0.0.1:54321/functions/v1/resolve-url && break; sleep 1; done
       - name: Run backend integration tests
         run: |
           deno test supabase/tests/integration/*.test.ts \
             --allow-net \
             --allow-env \
             --allow-read \
-            --env SUPABASE_URL=http://127.0.0.1:55321 \
+            --env SUPABASE_URL=http://127.0.0.1:54321 \
             --env CRON_SECRET=test-cron-secret
       - name: Cleanup
         if: always()
@@ -87,35 +70,24 @@ jobs:
         with: { node-version-file: .nvmrc, cache: pnpm }
       - name: Install deps
         run: pnpm install --frozen-lockfile
-      - name: Setup scratch workdir
-        run: |
-          mkdir -p /tmp/claude-1000/wd/supabase
-          cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
-          cp -r supabase/functions /tmp/claude-1000/wd/supabase/
-          cp supabase/config.toml /tmp/claude-1000/wd/supabase/
-          cp -r supabase/templates /tmp/claude-1000/wd/supabase/
-          ln -sf $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql
-      - name: Patch rate limit in config.toml
-        run: |
-          sed -i 's/email_sent = [0-9]*/email_sent = 200/' /tmp/claude-1000/wd/supabase/config.toml
+      - name: Patch GoTrue email rate limit for CI
+        run: sed -i 's/email_sent = [0-9]*/email_sent = 200/' supabase/config.toml
       - name: Create .env for functions
         run: |
-          cat > /tmp/claude-1000/wd/.env << 'EOF'
+          cat > supabase/functions/.env.ci << 'EOF'
           ACCESSTRADE_TOKEN=test-token
           ACCESSTRADE_BASE_URL=http://172.17.0.1:8787
           CRON_SECRET=test-cron-secret
           EOF
       - name: Start Supabase
         run: |
-          cd /tmp/claude-1000/wd
           supabase start -x studio,imgproxy > /tmp/supabase.log 2>&1 &
           for i in {1..30}; do
-            curl -s http://127.0.0.1:55321/rest/v1/ && echo "API ready" && break
+            curl -s http://127.0.0.1:54321/rest/v1/ && echo "API ready" && break
             sleep 1
           done
       - name: Reset DB and seed
         run: |
-          cd /tmp/claude-1000/wd
           supabase db reset
       - name: Start mock AccessTrade server
         run: |
@@ -123,13 +95,12 @@ jobs:
           sleep 2
       - name: Start functions serve
         run: |
-          cd /tmp/claude-1000/wd
-          supabase functions serve --no-verify-jwt --env-file .env > /tmp/functions.log 2>&1 &
-          sleep 3
+          supabase functions serve --no-verify-jwt --env-file supabase/functions/.env.ci > /tmp/functions.log 2>&1 &
+          for i in {1..30}; do curl -s -o /dev/null http://127.0.0.1:54321/functions/v1/resolve-url && break; sleep 1; done
       - name: Build web
         run: |
           cat > apps/web/.env.local << 'EOF'
-          NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:55321
+          NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
           NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
           EOF
@@ -139,7 +110,7 @@ jobs:
       - name: Run Playwright E2E
         env:
           WEB_BASE_URL: http://127.0.0.1:3000
-          MAILPIT_URL: http://127.0.0.1:55324
+          MAILPIT_URL: http://127.0.0.1:54324
         run: pnpm --filter ./apps/web exec playwright test
       - name: Upload results
         if: always()
@@ -164,35 +135,24 @@ jobs:
         with: { node-version-file: .nvmrc, cache: pnpm }
       - name: Install deps
         run: pnpm install --frozen-lockfile
-      - name: Setup scratch workdir
-        run: |
-          mkdir -p /tmp/claude-1000/wd/supabase
-          cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
-          cp -r supabase/functions /tmp/claude-1000/wd/supabase/
-          cp supabase/config.toml /tmp/claude-1000/wd/supabase/
-          cp -r supabase/templates /tmp/claude-1000/wd/supabase/
-          ln -sf $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql
-      - name: Patch rate limit in config.toml
-        run: |
-          sed -i 's/email_sent = [0-9]*/email_sent = 200/' /tmp/claude-1000/wd/supabase/config.toml
+      - name: Patch GoTrue email rate limit for CI
+        run: sed -i 's/email_sent = [0-9]*/email_sent = 200/' supabase/config.toml
       - name: Create .env for functions
         run: |
-          cat > /tmp/claude-1000/wd/.env << 'EOF'
+          cat > supabase/functions/.env.ci << 'EOF'
           ACCESSTRADE_TOKEN=test-token
           ACCESSTRADE_BASE_URL=http://172.17.0.1:8787
           CRON_SECRET=test-cron-secret
           EOF
       - name: Start Supabase
         run: |
-          cd /tmp/claude-1000/wd
           supabase start -x studio,imgproxy > /tmp/supabase.log 2>&1 &
           for i in {1..30}; do
-            curl -s http://127.0.0.1:55321/rest/v1/ && echo "API ready" && break
+            curl -s http://127.0.0.1:54321/rest/v1/ && echo "API ready" && break
             sleep 1
           done
       - name: Reset DB and seed
         run: |
-          cd /tmp/claude-1000/wd
           supabase db reset
       - name: Start mock AccessTrade server
         run: |
@@ -200,20 +160,19 @@ jobs:
           sleep 2
       - name: Start functions serve
         run: |
-          cd /tmp/claude-1000/wd
-          supabase functions serve --no-verify-jwt --env-file .env > /tmp/functions.log 2>&1 &
-          sleep 3
+          supabase functions serve --no-verify-jwt --env-file supabase/functions/.env.ci > /tmp/functions.log 2>&1 &
+          for i in {1..30}; do curl -s -o /dev/null http://127.0.0.1:54321/functions/v1/resolve-url && break; sleep 1; done
       - name: Build web (for landing URL)
         run: |
           cat > apps/web/.env.local << 'EOF'
-          NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:55321
+          NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
           NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
           EOF
           pnpm --filter ./apps/web build
       - name: Build extension
         env:
-          WXT_SUPABASE_URL: http://127.0.0.1:55321
+          WXT_SUPABASE_URL: http://127.0.0.1:54321
           WXT_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
           WXT_LANDING_URL: http://127.0.0.1:3000
         run: pnpm --filter ./apps/extension build
@@ -222,7 +181,7 @@ jobs:
       - name: Run Playwright E2E
         env:
           WEB_BASE_URL: http://127.0.0.1:3000
-          MAILPIT_URL: http://127.0.0.1:55324
+          MAILPIT_URL: http://127.0.0.1:54324
         run: |
           xvfb-run -a pnpm --filter ./apps/extension exec playwright test
       - name: Upload results
