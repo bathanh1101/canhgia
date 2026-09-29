@@ -1,0 +1,84 @@
+{
+  "_source": "live 2026-09-29",
+  "_note": "GET /v1/offers_informations?merchant=<m>&limit=N (max 100; response = {data[]} no total). Counts via GET /v1/offers_informations/merchant_list: shopee 7643, tikivn 109; every other merchant 0.",
+  "data": [
+    {
+      "aff_link": "https://go.isclix.com/deep_link/<AT_PUB_ID>?url=https%3A%2F%2Fshopee.vn%2Fsearch%3FpromotionId%3D1519184237858828%26signature%3D8cd965150f7222afd24ae055c51937a29a9eaa35e9752815636cefdb3781fe7c%26voucherCode%3DLIFE30AF%26ref%3Dsansandeals",
+      "banners": [],
+      "categories": [
+        {
+          "category_name": "EC-29",
+          "category_name_show": "Other",
+          "category_no": ""
+        }
+      ],
+      "content": "[Lifestyles SKYN VN] [Lifestyles SKYN VN]-Giảm 60,000 VNĐ cho đơn tối thiểu 399,000 VNĐ",
+      "coupons": [
+        {
+          "coupon_code": "LIFE30AF",
+          "coupon_desc": "Giảm 60,000 VNĐ cho đơn tối thiểu 399,000 VNĐ"
+        }
+      ],
+      "domain": "shopee.vn",
+      "end_time": "2026-09-30",
+      "id": "shopee-1519184237858828",
+      "image": "https://cf.shopee.vn/file/b813a11b72263d1b7d56a57b611a5d8c",
+      "link": "https://shopee.vn/search?promotionId=1519184237858828&signature=8cd965150f7222afd24ae055c51937a29a9eaa35e9752815636cefdb3781fe7c&voucherCode=LIFE30AF&ref=sansandeals",
+      "merchant": "shopee",
+      "name": "[Lifestyles SKYN VN]-Giảm 60,000 VNĐ cho đơn tối thiểu 399,000 VNĐ",
+      "start_time": "2026-09-28"
+    },
+    {
+      "aff_link": "https://go.isclix.com/deep_link/<AT_PUB_ID>?url=https%3A%2F%2Fshopee.vn%2Fsearch%3FpromotionId%3D1518016165613580%26signature%3De1c7756114fd8bac0ee64c07bc1a0192850403c521ee4447530f027f5f286eaf%26voucherCode%3DLETNCLEAR%26ref%3Dsansandeals",
+      "banners": [],
+      "categories": [
+        {
+          "category_name": "EC-29",
+          "category_name_show": "Other",
+          "category_no": ""
+        }
+      ],
+      "content": "[LetNature Store] [LetNature Store]-Giảm 6%-tối đa 200,000 VNĐ cho đơn tối thiểu 150,000 VNĐ",
+      "coupons": [
+        {
+          "coupon_code": "LETNCLEAR",
+          "coupon_desc": "Giảm 6%-tối đa 200,000 VNĐ cho đơn tối thiểu 150,000 VNĐ"
+        }
+      ],
+      "domain": "shopee.vn",
+      "end_time": "2026-10-10",
+      "id": "shopee-1518016165613580",
+      "image": "https://cf.shopee.vn/file/vn-11134216-7r98o-lloo37al0afz72",
+      "link": "https://shopee.vn/search?promotionId=1518016165613580&signature=e1c7756114fd8bac0ee64c07bc1a0192850403c521ee4447530f027f5f286eaf&voucherCode=LETNCLEAR&ref=sansandeals",
+      "merchant": "shopee",
+      "name": "[LetNature Store]-Giảm 6%-tối đa 200,000 VNĐ cho đơn tối thiểu 150,000 VNĐ",
+      "start_time": "2026-09-28"
+    },
+    {
+      "aff_link": "https://go.isclix.com/deep_link/<AT_PUB_ID>?url=https%3A%2F%2Ftiki.vn%2Fcua-hang%2Fmay-in-a0%3Fref%3Dsansandeals",
+      "banners": [],
+      "categories": [
+        {
+          "category_name": "EC-29",
+          "category_name_show": "Other",
+          "category_no": ""
+        }
+      ],
+      "content": "Giảm 20K cho đơn hàng từ 160K.\nÁp dụng cho sản phẩm của Máy in A0.\nMỗi khách hàng được sử dụng tối đa 1 lần.",
+      "coupons": [
+        {
+          "coupon_code": "MZ92W8J1V6",
+          "coupon_desc": "Giảm 20K cho đơn hàng từ 160K"
+        }
+      ],
+      "domain": "tiki.vn",
+      "end_time": "2026-09-30",
+      "id": "tiki-79730378",
+      "image": "https://vcdn.tikicdn.com/cache/128x128/ts/seller/40/b4/ef/ab9d20b6db72fd61d0928ed800500e0b.jpg",
+      "link": "https://tiki.vn/cua-hang/may-in-a0?ref=sansandeals",
+      "merchant": "tikivn",
+      "name": "[Máy in A0]-Giảm 20K cho đơn hàng từ 160K",
+      "start_time": "2026-09-29"
+    }
+  ]
+}

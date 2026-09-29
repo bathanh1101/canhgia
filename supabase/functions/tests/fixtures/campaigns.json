@@ -1,0 +1,89 @@
+{
+  "_source": "live 2026-09-29",
+  "_note": "GET /v1/campaigns?limit=50&page=N. Response = {data[],page,total_page}. approval filter only honours 'successful'; other values return ALL campaigns (203). HTML description fields truncated here. Only 2 campaigns approved for this account (Lazada Malaysia, AT referral).",
+  "data": [
+    {
+      "approval": "successful",
+      "category": "59",
+      "cookie_duration": 604800,
+      "cookie_policy": "",
+      "description": {
+        "action_point": "<p>1. CPS</p><p>2. Accepted rule:</p><p>- The order has been successfully delivered and paid.</p><p>- The order has not been returned within 14 days.</p>",
+        "commission_policy": "<p>Commission = Base commission + Brand bonus commission</p><span style=\"font-size: 0.875rem;\">Base commission please follow this sheet:</span>&nbsp;<a href=\"https://docs.google.com/spreadsheets/d/1FU...[truncated]",
+        "cookie_policy": "<p class=\"p1\"><span style=\"font-weight: bolder;\">For the entire campaign:</span></p><p class=\"p1\"><span style=\"font-weight: bolder;\">1. Cookies:</span></p><ul><li><p class=\"p1\">App: 7 days</p></li></u...[truncated]",
+        "introduction": "<p>This campaign is designed for publishers and creators who want to scale their earnings with a strong, high-converting platform. Lazada Malaysia offers competitive commissions, a wide range of trust...[truncated]",
+        "other_notice": "",
+        "rejected_reason": "<ul><li>The order was not successfully paid, and the customer did not receive the product.</li><li>The order was returned within 14 days from the successful delivery date.</li><li>Orders that violate ...[truncated]",
+        "traffic_building_policy": "Publishers running review sites are not allowed to use negative content or make negative comparisons between products sold on e-commerce platforms. Such actions violate the brand policies of products ...[truncated]"
+      },
+      "end_time": null,
+      "id": "6867977378089718296",
+      "logo": "https://content.accesstrade.vn/adv/1773201453_avatar_1773201453.jpg",
+      "max_com": "26.4%",
+      "merchant": "lazada_malay",
+      "name": "Lazada Malaysia",
+      "scope": "public",
+      "start_time": "2025-12-11T12:05:03.892000",
+      "status": 1,
+      "sub_category": "20",
+      "type": 3,
+      "url": "https://www.lazada.com.my/"
+    },
+    {
+      "approval": "unregistered",
+      "category": "59",
+      "cookie_duration": 604800,
+      "cookie_policy": "",
+      "description": {
+        "action_point": "<p class=\"MsoNormal\"><span style=\"font-family: Arial; font-size: 14px;\">- Áp dụng trên ứng dụng mua sắm trên điện thoại và website của\nShopee trên PC, đơn hàng đặt mua qua nền tảng web trên điện thoại...[truncated]",
+        "commission_policy": "<p dir=\"ltr\" style=\"margin-top: 0pt; margin-bottom: 0pt; line-height: 1.38;\"><font face=\"Arial\" style=\"color: rgb(255, 0, 0); font-weight: bold;\"><span style=\"font-family: Arial;\">Hoa hồng khách hàng ...[truncated]",
+        "cookie_policy": "<p style=\"margin-right: 0px; margin-bottom: 10px; margin-left: 0px; font-size: 14px; letter-spacing: 0.14px; line-height: 22px; font-family: &quot;Source Sans Pro&quot;, &quot;Helvetica Neue&quot;, He...[truncated]",
+        "introduction": "<p></p><p></p><p></p><p></p><p dir=\"ltr\" style=\"line-height:1.38;margin-top:0pt;margin-bottom:0pt;\"><b><span style=\"font-size: 14px; font-family: Arial; background-color: transparent; font-style: norm...[truncated]",
+        "other_notice": "<p class=\"MsoNormal\"><span style=\"font-family: Arial; font-size: 14px;\">- Từ 0:00 ngày 2/11/2020 chiến dịch&nbsp;Shopee&nbsp;sẽ&nbsp;chuyển&nbsp;qua&nbsp;sử\ndụng&nbsp;hệ&nbsp;thống&nbsp;mới&nbsp;của&n...[truncated]",
+        "rejected_reason": "<p class=\"MsoNormal\"><span style=\"font-family: Arial; font-size: 14px;\">-&nbsp;Khách hàng không nhận hàng và thanh toán, khách hàng\ntrả hàng.</span><o:p></o:p></p><p class=\"MsoNormal\"><span style=\"fon...[truncated]",
+        "traffic_building_policy": "<p class=\"MsoNormal\"><span style=\"font-size: 0.875rem; color: rgb(62, 85, 105); font-family: Arial;\">Quy định xử phạt Publisher:&nbsp;</span><span style=\"font-size: 0.875rem; font-family: Arial; color...[truncated]"
+      },
+      "end_time": null,
+      "id": "4751584435713464237",
+      "logo": "https://content.accesstrade.vn/adv/1790672084_avatar_1790672084.jpg",
+      "max_com": "30000",
+      "merchant": "shopee",
+      "name": "Shopee Việt Nam Smartlink cho tất cả thiết bị",
+      "scope": "public",
+      "start_time": "2018-04-24T00:00:00",
+      "status": 1,
+      "sub_category": "59",
+      "type": 3,
+      "url": "https://shopee.vn/"
+    },
+    {
+      "approval": "unregistered",
+      "category": "59",
+      "cookie_duration": 2592000,
+      "cookie_policy": "",
+      "description": {
+        "action_point": "<p class=\"MsoNormal\" style=\"--tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan...[truncated]",
+        "commission_policy": "<p>\n </p><p></p><div style=\"margin: 0px; padding: 0px; border: 0px; clear: both;\"><p class=\"MsoNormal\" style=\"--tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-s...[truncated]",
+        "cookie_policy": "<p class=\"MsoNormal\" style=\"--tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan...[truncated]",
+        "introduction": "<p class=\"MsoNormal\" style=\"--tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan...[truncated]",
+        "other_notice": "<p class=\"MsoNormal\"><span style=\"font-family: Arial; font-size: 14px;\">- Đơn hàng lên hệ thống sau 24h kể từ thời điểm user đặt\nhàng.</span><o:p></o:p></p><span style=\"font-family: Arial; font-size: ...[truncated]",
+        "rejected_reason": "<p class=\"MsoNormal\" style=\"--tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan...[truncated]",
+        "traffic_building_policy": "<p class=\"MsoNormal\"><span style=\"font-family: Arial; font-size: 14px;\">﻿Cấm hình thức mua đi bán lại, đầu cơ; sử dụng link\naffiliate cho shop của mình để ăn hoa hồng.</span><o:p></o:p></p><span style...[truncated]"
+      },
+      "end_time": null,
+      "id": "5249638763776692551",
+      "logo": "https://content.accesstrade.vn/adv/1790064604_avatar_1790064604.png",
+      "max_com": "10.40%",
+      "merchant": "lazada_cashback",
+      "name": "Lazada Cashback",
+      "scope": "public",
+      "start_time": "2019-10-31T14:55:07.428000",
+      "status": 1,
+      "sub_category": "59",
+      "type": 3,
+      "url": "https://www.lazada.vn/"
+    }
+  ],
+  "page": 1,
+  "total_page": 5
+}

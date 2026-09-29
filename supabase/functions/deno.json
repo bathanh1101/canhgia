@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.45.4",
+    "@std/assert": "jsr:@std/assert@1"
+  },
+  "fmt": { "lineWidth": 140, "semiColons": false, "singleQuote": true },
+  "test": { "include": ["tests/"] }
+}

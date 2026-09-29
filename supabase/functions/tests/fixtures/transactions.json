@@ -1,0 +1,42 @@
+{
+  "_source": "live 2026-09-29",
+  "_note": "LIVE result for this account was {\"total\":0,\"data\":[]} (no conversions yet). 'documented_row' = field list from docs page lay-danh-sach-giao-dich (research-01), NOT live.",
+  "live_response": {
+    "total": 0,
+    "data": []
+  },
+  "documented_row": {
+    "id": "<hash>",
+    "transaction_id": "<merchant order id>",
+    "conversion_id": 0,
+    "merchant": "shopee",
+    "status": 0,
+    "is_confirmed": 0,
+    "click_time": "",
+    "transaction_time": "",
+    "update_time": "",
+    "confirmed_time": "",
+    "transaction_value": 0,
+    "commission": 0,
+    "product_id": "",
+    "product_name": "",
+    "product_price": 0,
+    "product_quantity": 0,
+    "product_category": "",
+    "utm_source": "",
+    "utm_medium": "",
+    "utm_campaign": "",
+    "utm_content": "",
+    "utm_term": "",
+    "conversion_platform": "",
+    "customer_type": "",
+    "is_brand_bonus": false,
+    "reason_rejected": "",
+    "click_url": "",
+    "_extra": {
+      "device_type": "",
+      "os": "",
+      "browser": ""
+    }
+  }
+}
