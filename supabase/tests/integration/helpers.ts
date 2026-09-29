@@ -65,7 +65,14 @@ export async function rest(path: string, init: RequestInit = {}) {
   return { status: res.status, body: await res.json().catch(() => null) }
 }
 
+/** create_click allows 30 clicks/user/hour; age the fixtures' recent clicks so repeated runs (and the e2e suites) never trip it. */
+export async function ageRecentClicks() {
+  const since = new Date(Date.now() - 3600_000).toISOString()
+  await rest(`clicks?created_at=gt.${since}`, { method: 'PATCH', body: JSON.stringify({ created_at: new Date(Date.now() - 2 * 3600_000).toISOString() }) })
+}
+
 export async function createClick(userId: string, merchantId: string, url: string): Promise<{ click_id: number; utm_content: string }> {
+  await ageRecentClicks()
   const r = await rest('rpc/create_click', {
     method: 'POST',
     body: JSON.stringify({

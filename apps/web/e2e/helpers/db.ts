@@ -76,3 +76,9 @@ export async function seedComplaint(orderCode: string, valueVnd = 300000) {
   }))
   return r as { id: number; public_code: string }
 }
+
+/** create_click allows 30 clicks/user/hour; age recent fixture clicks so repeated runs never trip it. */
+export async function ageRecentClicks() {
+  const since = new Date(Date.now() - 3600_000).toISOString()
+  await pg(`clicks?created_at=gt.${since}`, { method: 'PATCH', body: { created_at: new Date(Date.now() - 2 * 3600_000).toISOString() } })
+}

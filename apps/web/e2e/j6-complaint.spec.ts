@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { ingestConversion, pg, seedComplaint, USERS } from './helpers/db'
+import { ageRecentClicks, ingestConversion, pg, seedComplaint, USERS } from './helpers/db'
 
 async function openComplaint(page: Page, code: string) {
   await page.goto('/admin/complaints')
@@ -35,6 +35,7 @@ test.describe('J6: complaints', () => {
     await openComplaint(page, c.public_code)
     await expect(await resolve(page, 40_000, 'Duyệt thủ công cho minh')).toBeHidden()
     // AT later reports the same order code, attributed to lan's click
+    await ageRecentClicks()
     const click = (await pg('rpc/create_click', {
       method: 'POST',
       body: { p_user_id: USERS.lan, p_merchant_id: 'shopee', p_origin_url: 'https://shopee.vn/x', p_resolved_url: `https://shopee.vn/x-${code}`, p_offer_id: null, p_source: 'app', p_device_hash: null },
