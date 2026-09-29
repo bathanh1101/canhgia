@@ -1,6 +1,6 @@
 # Development roadmap
 
-Snapshot 2026-09-30. Status is from git + reports, not from `plan.md` (its table was never updated).
+Snapshot 2026-09-30 08:40. Status from git + reports; `plan.md` table updated to match.
 
 ## Phases
 | # | Phase | Status | Evidence / gap |
@@ -15,8 +15,8 @@ Snapshot 2026-09-30. Status is from git + reports, not from `plan.md` (its table
 | 07 | Web shell + admin auth | done | `98f3ff0` |
 | 08 | Admin A | done | `f79c09b` |
 | 09 | Admin B | done | `173e48d` |
-| 10 | Extension | done, partial verification | reviewed; e2e blocked on browser runtime |
-| 11 | Integration + e2e | partial | harness exists; last run failing/blocked (see changelog); mobile integration_test not run |
+| 10 | Extension | done | reviewed + fixes `d196a08`; Playwright e2e 4/4 green (headless chromium) |
+| 11 | Integration + e2e | done (local) | `e496d5f`, `66f13ee`; Deno 15, web Playwright 21/21, extension 4/4 green on local stack; `e2e.yml` unverified on GitHub; mobile `integration_test` compiles, device-only |
 | 12 | Docs + deploy | partial (prepared) | docs, workflows, privacy page, Android signing done; all cloud steps blocked on accounts |
 
 ## Human prerequisites still open (blocks phase 12 execution)
@@ -25,7 +25,7 @@ Snapshot 2026-09-30. Status is from git + reports, not from `plan.md` (its table
 - Google OAuth clients (Web, Android, iOS), Firebase project (+ APNs later), Cloudflare Turnstile prod site.
 - Play Console, Chrome Web Store dev account, Apple Developer + macOS runner.
 - Extension key pair (stable id), Android upload keystore.
-- Wiring left in repo: Firebase Gradle plugin + `google-services.json` (Android), iOS xcconfig/URL scheme/entitlements, `EXTENSION_ID` in `config.toml`, `apps/web/.env.example` shows wrong `vn.canhgia.canhgia` ids (real `io.canhgia.app`).
+- Wiring left in repo: Firebase Gradle plugin + `google-services.json` (Android), iOS xcconfig/URL scheme/entitlements, `EXTENSION_ID` in `config.toml`.
 
 ## Backend gaps found (need a new migration each; owner: next DB phase)
 1. `reset_withdraw_pin` RPC: `set_withdraw_pin` on an existing PIN needs a `verify_pin` token, so a user who forgot the PIN cannot withdraw (fresh OTP + long withdrawal hold + audit).
@@ -41,6 +41,9 @@ Deferred referral deep link after store install, phone OTP, Facebook/Apple login
 
 ## Next steps (order)
 1. Obtain AT approvals + test purchase (longest lead time).
-2. Create Supabase project, follow `deployment-guide.md` section 1, run e2e green against local stack meanwhile.
+2. Create Supabase project, follow `deployment-guide.md` section 1 (local e2e already green).
 3. Vercel + Android internal track + CWS unlisted; go-live checklist.
 4. Backend gaps 1, 3, 4 before real payouts; 5 and 6 before public launch.
+
+## Final gate 2026-09-30 (`tester-260930-0105-final-gate.md`, all exit 0)
+pgTAP 496 · deno 81 · web vitest 150 + lint/typecheck/build · extension vitest 64 + build · flutter analyze 0 / test 335 · APK debug+release · e2e: deno 15, web 21/21, extension 4/4 · no secrets in git. 36 commits on `main`, not pushed.

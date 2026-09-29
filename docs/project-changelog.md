@@ -2,6 +2,12 @@
 
 Derived from `git log`. Versions: app `1.0.0+1` (pubspec), extension `0.1.0`. Nothing is released to any store yet.
 
+## Unreleased (post-gate, 2026-09-30)
+- fix(db): dev seed users resolvable by GoTrue (`c2b9c58`) - OTP mail + `generate_link` now work locally.
+- fix(web): admin action id schemas accept any well-formed uuid (`39104e6`); env example ids `io.canhgia.app`, privacy link in footer (`f5f5cd5`).
+- test: e2e suites rewritten to real contracts/UI, harness env-driven, `e2e.yml` runnable (`e496d5f`, `498edcd`, `66f13ee`, `a7227f6`); final gate all green (see roadmap).
+- chore: `deno.lock` committed.
+
 ## Unreleased (phase 12, 2026-09-30)
 - docs: system-architecture, deployment-guide, project-changelog, development-roadmap.
 - ci: manual deploy workflows `deploy-{supabase,web,extension,android}.yml` (skip with a warning when secrets are absent).
