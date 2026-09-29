@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { notifyResult } from "@/components/admin-kit/notify-result";
 import { Button } from "@/components/ui/button";
-import { claimWithdrawals, markPaid, rejectWithdrawals } from "@/app/admin/withdrawals/actions";
-import { reasonSchema, transferRefSchema } from "@/app/admin/withdrawals/schemas";
+import { claimWithdrawals, rejectWithdrawals } from "@/app/admin/withdrawals/actions";
+import { reasonSchema } from "@/app/admin/withdrawals/schemas";
 import type { ActionResult } from "@/lib/admin/action-result";
 import { errorMessage } from "@/lib/errors/error-messages";
 import { ReasonDialog } from "./reason-dialog";
@@ -24,6 +24,7 @@ export function ResultsList({ results, labels }: { results: RowResult[]; labels:
   );
 }
 
+/** Bulk claim/reject only: paying needs one bank transfer reference per row, so it lives in the per-row dialog. */
 export function BulkActionBar({
   claimIds, ownedIds, labels,
 }: { claimIds: string[]; ownedIds: string[]; labels: Map<string, string> }) {
@@ -46,12 +47,6 @@ export function BulkActionBar({
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-text-2">Đã chọn {claimIds.length + ownedIds.length}</span>
         <Button size="sm" disabled={pending || claimIds.length === 0} onClick={claim}>Nhận xử lý ({claimIds.length})</Button>
-        <ReasonDialog
-          trigger={<Button size="sm" disabled={pending || ownedIds.length === 0}>Đã chuyển ({ownedIds.length})</Button>}
-          title="Đánh dấu đã chuyển khoản" description="Một mã giao dịch được áp dụng cho các dòng đã chọn (ngân hàng phải đã xác minh)."
-          label="Mã giao dịch ngân hàng" schema={transferRefSchema} multiline={false}
-          onSubmit={(ref) => run(() => markPaid(ownedIds, ref))}
-        />
         <ReasonDialog
           trigger={<Button size="sm" variant="destructive" disabled={pending || ownedIds.length === 0}>Từ chối ({ownedIds.length})</Button>}
           title="Từ chối các yêu cầu đã chọn" description="Số tiền được hoàn lại vào ví từng người dùng." label="Lý do (5-500 ký tự)"

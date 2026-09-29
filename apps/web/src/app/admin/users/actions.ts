@@ -45,13 +45,15 @@ export async function reviewKyc(userId: string, decision: string, reason: string
   return ok(d.data === "verified" ? "Đã duyệt KYC" : "Đã từ chối KYC");
 }
 
-export async function adjustWallet(userId: string, amount: number, reason: string): Promise<ActionResult> {
+/** `requestId` is generated once per dialog attempt; SQL uses it as the ledger idempotency key so retries never double-post. */
+export async function adjustWallet(userId: string, amount: number, reason: string, requestId: string): Promise<ActionResult> {
   const id = userIdSchema.safeParse(userId);
   const a = adjustAmountSchema.safeParse(amount);
   const r = reasonSchema.safeParse(reason);
-  if (!id.success || !a.success || !r.success) return bad();
+  const rid = userIdSchema.safeParse(requestId);
+  if (!id.success || !a.success || !r.success || !rid.success) return bad();
   const { supabase } = await requireAdmin();
-  const { error } = await supabase.rpc("admin_adjust_wallet", { p_user_id: id.data, p_amount: a.data, p_reason: r.data });
+  const { error } = await supabase.rpc("admin_adjust_wallet", { p_user_id: id.data, p_amount: a.data, p_reason: r.data, p_request_id: rid.data });
   if (error) return fail(error);
   refresh(id.data);
   return ok("Đã điều chỉnh ví");

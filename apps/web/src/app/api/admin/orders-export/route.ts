@@ -5,7 +5,7 @@ import {
   EXPORT_CHUNK, EXPORT_HEADERS, exportFilename, mapOrderRow, MAX_EXPORT_ROWS,
 } from "@/components/admin/orders/orders-export-rows";
 import { buildOrdersQuery, findUserIdsByEmail, loadUserRefs } from "@/components/admin/orders/orders-query";
-import { requireAdmin } from "@/lib/admin/require-admin";
+import { requireAdminApi } from "@/lib/admin/require-admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,10 +13,14 @@ export const dynamic = "force-dynamic";
 const fail = (status: number, error: string) => NextResponse.json({ error }, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function GET(req: NextRequest) {
-  const { supabase } = await requireAdmin();
+  const auth = await requireAdminApi();
+  if (!auth.ok) return auth.response;
+  const { supabase } = auth;
   const filter = parseOrdersFilter(Object.fromEntries(req.nextUrl.searchParams));
 
   try {
+    const { error: auditErr } = await supabase.rpc("admin_log_action", { p_action: "export_orders", p_target: { ...filter } });
+    if (auditErr) throw new Error(`audit: ${auditErr.message}`); // no audit row, no export
     const matched = filter.q ? await findUserIdsByEmail(supabase, filter.q) : [];
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("Đơn hàng");

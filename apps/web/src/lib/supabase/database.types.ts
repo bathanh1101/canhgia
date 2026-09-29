@@ -1942,6 +1942,7 @@ export type Database = {
           p_amount: number
           p_order_id?: string
           p_reason: string
+          p_request_id?: string
           p_user_id: string
         }
         Returns: number
@@ -2202,7 +2203,12 @@ export type Database = {
           status: string
         }[]
       }
+      admin_log_action: {
+        Args: { p_action: string; p_target?: Json }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
+      is_admin_candidate: { Args: never; Returns: boolean }
       mark_notifications_read: { Args: { p_ids?: number[] }; Returns: number }
       mark_push_sent: { Args: { p_ids: number[] }; Returns: undefined }
       promote_withdrawable: { Args: never; Returns: number }

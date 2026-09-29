@@ -82,12 +82,12 @@ select is((select array_agg(p.proname::text order by p.proname) from pg_proc p
   'service_role executes only the service fns');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p
             where p.pronamespace = 'public'::regnamespace and has_function_privilege('authenticated', p.oid, 'execute')),
-  array['add_bank_account', 'admin_adjust_wallet', 'admin_assign_order', 'admin_claim_withdrawal', 'admin_mark_paid', 'admin_merchant_mix',
+  array['add_bank_account', 'admin_adjust_wallet', 'admin_assign_order', 'admin_claim_withdrawal', 'admin_log_action', 'admin_mark_paid', 'admin_merchant_mix',
         'admin_monthly_series', 'admin_overview', 'admin_reject_withdrawals', 'admin_resolve_complaint', 'admin_review_kyc',
         'admin_set_setting', 'admin_set_user_lock', 'admin_top_users', 'admin_update_flag', 'admin_update_vip_tier',
         'admin_upsert_cashback_rule', 'admin_user_stats', 'admin_verify_bank_account', 'approve_extension_login', 'bind_referral',
         'claim_mission', 'complete_onboarding', 'daily_checkin', 'estimate_cashback', 'get_compare', 'get_extension_login_request',
-        'get_merchant_rates', 'get_mission_progress', 'get_price_history', 'get_public_settings', 'is_admin', 'mark_notifications_read',
+        'get_merchant_rates', 'get_mission_progress', 'get_price_history', 'get_public_settings', 'is_admin', 'is_admin_candidate', 'mark_notifications_read',
         'record_link_share', 'register_device', 'request_withdrawal', 'search_offers', 'set_withdraw_pin', 'submit_kyc',
         'submit_missing_order', 'touch_activity', 'update_profile', 'verify_pin'],
   'authenticated executes only the listed user/admin/read fns');

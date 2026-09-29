@@ -8,10 +8,13 @@ const verifySchema = z.object({ factorId: z.uuid(), code: z.string().regex(/^\d{
 
 export interface EnrolData { factorId: string; qr: string; secret: string }
 
-/** First login only: enrol a TOTP factor. Refused when a verified factor already exists (no second-factor takeover at aal1). */
+/** First login only: enrol a TOTP factor. Refused without an `admins` row and when a verified factor already exists (no second-factor takeover at aal1). */
 export async function startEnrol(): Promise<ActionResult<EnrolData>> {
   try {
     const supabase = await createServerSupabase();
+    const { data: candidate, error: candErr } = await supabase.rpc("is_admin_candidate");
+    if (candErr) return fail(null);
+    if (!candidate) return fail({ message: "forbidden" });
     const { data: factors, error: listErr } = await supabase.auth.mfa.listFactors();
     if (listErr) return fail(null);
     if (factors.totp.length > 0) return fail({ message: "forbidden" });

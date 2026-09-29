@@ -1,7 +1,6 @@
 import { DataTable } from "@/components/admin-kit/data-table";
 import { StatusBadge } from "@/components/admin-kit/status-badge";
 import { formatDateTime, formatVnd } from "@/lib/format";
-import { maskAccount } from "./withdrawal-state";
 import type { WithdrawalRow } from "./types";
 
 export function WithdrawalHistoryTable({ rows }: { rows: WithdrawalRow[] }) {
@@ -14,7 +13,7 @@ export function WithdrawalHistoryTable({ rows }: { rows: WithdrawalRow[] }) {
         { key: "time", header: "Thời gian", cell: (r) => formatDateTime(r.paidAt ?? r.createdAt) },
         { key: "user", header: "Người dùng", cell: (r) => r.email },
         { key: "amount", header: "Số tiền", cell: (r) => formatVnd(r.amount) },
-        { key: "bank", header: "Ngân hàng", cell: (r) => `${r.bankName} · ${maskAccount(r.accountNumber)}` },
+        { key: "bank", header: "Ngân hàng", cell: (r) => `${r.bankName} · ${r.accountMask}` },
         { key: "status", header: "Trạng thái", cell: (r) => <StatusBadge status={r.status} /> },
         { key: "claimer", header: "Người nhận xử lý", cell: (r) => r.claimedByEmail ?? "-" },
         { key: "payer", header: "Người chuyển", cell: (r) => r.paidByEmail ?? "-" },

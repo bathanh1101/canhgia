@@ -15,15 +15,17 @@ export function AdjustWalletDialog({ userId, trigger }: { userId: string; trigge
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [confirming, setConfirming] = useState(false);
+  // Stable across retries of the same adjustment; renewed whenever the inputs change or after success.
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const [pending, start] = useTransition();
   const parsedAmount = adjustAmountSchema.safeParse(Number(amount));
   const valid = parsedAmount.success && reasonSchema.safeParse(reason).success;
 
-  const reset = () => { setOpen(false); setConfirming(false); setAmount(""); setReason(""); };
+  const reset = () => { setRequestId(crypto.randomUUID()); setOpen(false); setConfirming(false); setAmount(""); setReason(""); };
   const submit = () =>
     start(async () => {
       try {
-        const r = await adjustWallet(userId, Number(amount), reason);
+        const r = await adjustWallet(userId, Number(amount), reason, requestId);
         notifyResult(r);
         if (r.ok) reset();
       } catch {
@@ -45,11 +47,11 @@ export function AdjustWalletDialog({ userId, trigger }: { userId: string; trigge
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <Label htmlFor="adj-amount">Số tiền (đ)</Label>
-              <Input id="adj-amount" type="number" step={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <Input id="adj-amount" type="number" step={1} value={amount} onChange={(e) => { setAmount(e.target.value); setRequestId(crypto.randomUUID()); }} />
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="adj-reason">Lý do (5-500 ký tự)</Label>
-              <Textarea id="adj-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+              <Textarea id="adj-reason" value={reason} onChange={(e) => { setReason(e.target.value); setRequestId(crypto.randomUUID()); }} />
             </div>
           </div>
         )}

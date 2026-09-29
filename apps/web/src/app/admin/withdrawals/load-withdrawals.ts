@@ -1,4 +1,5 @@
 import type { WithdrawalRow } from "@/components/admin/withdrawals/types";
+import { maskAccount } from "@/components/admin/withdrawals/withdrawal-state";
 import type { createServerSupabase } from "@/lib/supabase/server";
 
 type Db = Awaited<ReturnType<typeof createServerSupabase>>;
@@ -46,8 +47,7 @@ export async function loadWithdrawals(
     status: w.status ?? "pending",
     bankName: bankCode.get(w.bank_bin ?? "") ?? w.bank_bin ?? "",
     bankBin: w.bank_bin ?? "",
-    accountNumber: w.account_number ?? "",
-    accountName: w.account_name ?? "",
+    accountMask: maskAccount(w.account_number ?? ""),
     bankAccountId: w.bank_account_id ?? "",
     bankVerified: verified.get(w.bank_account_id ?? "") ?? false,
     snapshotRisk: w.risk_level ?? "low",

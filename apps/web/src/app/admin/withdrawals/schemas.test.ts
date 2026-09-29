@@ -4,9 +4,10 @@ import { idsSchema, reasonSchema, settingsSchema, transferRefSchema } from "./sc
 const uuid = "1a2b3c4d-1111-4222-8333-444455556666";
 
 describe("withdrawal schemas", () => {
-  it("transfer_ref 4-64 chars, trimmed", () => {
-    expect(transferRefSchema.safeParse("  FT12  ").data).toBe("FT12");
-    expect(transferRefSchema.safeParse("abc").success).toBe(false);
+  it("transfer_ref 6-64 bank-ref chars, trimmed", () => {
+    expect(transferRefSchema.safeParse("  FT26100512345  ").data).toBe("FT26100512345");
+    expect(transferRefSchema.safeParse("FT12").success).toBe(false);
+    expect(transferRefSchema.safeParse("abc def ghi").success).toBe(false);
     expect(transferRefSchema.safeParse("x".repeat(65)).success).toBe(false);
   });
   it("reason 5-500 chars", () => {

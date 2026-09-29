@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeSupabase } from "@/components/admin/withdrawals/test-fake-supabase";
 
@@ -48,6 +48,18 @@ describe("/admin/users", () => {
     expect(screen.getByAltText("CCCD mặt trước")).toHaveAttribute("src", "https://signed.test/kyc.jpg");
     expect(screen.getByRole("button", { name: "Duyệt" })).toBeInTheDocument();
     expect(screen.getByText("Sổ cái (50 gần nhất)")).toBeInTheDocument();
+  });
+
+  it("KYC view is audited, and without the audit row no signed URL is issued", async () => {
+    const db = fakeSupabase(tables, { signedUrl: "https://signed.test/kyc.jpg" });
+    const rpc = vi.fn(async () => ({ data: null, error: null }));
+    state.db = { ...db, rpc };
+    render(await ProfilePage({ params: Promise.resolve({ id: uid }) }));
+    expect(rpc).toHaveBeenCalledWith("admin_log_action", { p_action: "view_kyc", p_target: { user_id: uid } });
+    cleanup();
+    state.db = { ...db, rpc: async () => ({ data: null, error: { message: "forbidden" } }) };
+    render(await ProfilePage({ params: Promise.resolve({ id: uid }) }));
+    expect(screen.queryByAltText("CCCD mặt trước")).toBeNull();
   });
 
   it("profile page 404s on a malformed id", async () => {

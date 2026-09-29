@@ -29,7 +29,9 @@ export async function loadUserProfile(db: Db, id: string): Promise<{ data: Profi
   if (!profile.data) return null;
 
   const k = kyc.data;
-  const [frontUrl, backUrl] = k ? await Promise.all([sign(db, k.front_path), sign(db, k.back_path)]) : [null, null];
+  // Viewing KYC images is audited; no audit row, no signed URLs.
+  const audited = k ? !(await db.rpc("admin_log_action", { p_action: "view_kyc", p_target: { user_id: id } })).error : false;
+  const [frontUrl, backUrl] = k && audited ? await Promise.all([sign(db, k.front_path), sign(db, k.back_path)]) : [null, null];
   const orderRows = (orders.data ?? []).map((o) => ({ ...o, id: o.id ?? "", merchant_id: o.merchant_id ?? "", value_vnd: o.value_vnd ?? 0, user_cashback_vnd: o.user_cashback_vnd ?? 0, credit_state: o.credit_state ?? "none" }));
   return {
     data: {

@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { notifyResult } from "@/components/admin-kit/notify-result";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input, Label } from "@/components/ui/input";
-import { markPaid, rejectWithdrawals, verifyBankAccount } from "@/app/admin/withdrawals/actions";
+import { getPayoutTarget, markPaid, rejectWithdrawals, verifyBankAccount } from "@/app/admin/withdrawals/actions";
 import { reasonSchema, transferRefSchema } from "@/app/admin/withdrawals/schemas";
 import { formatVnd } from "@/lib/format";
 import { ReasonDialog } from "./reason-dialog";
-import type { WithdrawalRow } from "./types";
+import type { PayoutTarget, WithdrawalRow } from "./types";
 import { transferMemo } from "./withdrawal-state";
 import { VietQrImage } from "./vietqr-image";
 
@@ -21,6 +21,19 @@ const Field = ({ k, v }: { k: string; v: string }) => (
 export function TransferDialog({ row, onClose }: { row: WithdrawalRow; onClose: () => void }) {
   const [ref, setRef] = useState("");
   const [pending, start] = useTransition();
+  const [target, setTarget] = useState<PayoutTarget | null>(null);
+  useEffect(() => {
+    let live = true;
+    getPayoutTarget(row.id)
+      .then((r) => {
+        if (!live) return;
+        if (r.ok && r.data) setTarget(r.data);
+        else { notifyResult(r.ok ? { ok: false, error: "Không tải được thông tin tài khoản nhận." } : r); onClose(); }
+      })
+      .catch(() => { if (live) { notifyResult({ ok: false, error: "Đã có lỗi xảy ra. Vui lòng thử lại." }); onClose(); } });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch once per row; onClose identity changes every render
+  }, [row.id]);
   const run = (fn: () => Promise<Parameters<typeof notifyResult>[0]>, closeOnOk = false) =>
     start(async () => {
       try {
@@ -31,7 +44,7 @@ export function TransferDialog({ row, onClose }: { row: WithdrawalRow; onClose: 
         notifyResult({ ok: false, error: "Đã có lỗi xảy ra. Vui lòng thử lại." });
       }
     });
-  const nameMismatch = row.kycName !== null && row.kycName.trim().toUpperCase() !== row.accountName.trim().toUpperCase();
+  const nameMismatch = target !== null && row.kycName !== null && row.kycName.trim().toUpperCase() !== target.accountName.trim().toUpperCase();
   const refOk = transferRefSchema.safeParse(ref).success;
 
   return (
@@ -42,11 +55,11 @@ export function TransferDialog({ row, onClose }: { row: WithdrawalRow; onClose: 
           Quét mã bằng app ngân hàng, đối chiếu tên người nhận với tên KYC rồi chuyển khoản. Sau đó nhập mã giao dịch của ngân hàng.
         </DialogDescription>
         <div className="mt-4 grid gap-6 md:grid-cols-[280px_1fr]">
-          <VietQrImage bin={row.bankBin} account={row.accountNumber} amount={row.amount} addInfo={transferMemo(row.id)} />
+          {target ? <VietQrImage bin={row.bankBin} account={target.accountNumber} amount={row.amount} addInfo={transferMemo(row.id)} /> : <p className="text-sm text-text-muted">Đang tải thông tin tài khoản...</p>}
           <dl className="flex flex-col gap-2">
             <Field k="Ngân hàng" v={`${row.bankName} (${row.bankBin})`} />
-            <Field k="Số tài khoản" v={row.accountNumber} />
-            <Field k="Tên chủ TK (lúc thêm)" v={row.accountName} />
+            <Field k="Số tài khoản" v={target?.accountNumber ?? row.accountMask} />
+            <Field k="Tên chủ TK (lúc thêm)" v={target?.accountName ?? "..."} />
             <Field k="Tên KYC" v={row.kycName ?? "Chưa có KYC"} />
             <Field k="Nội dung" v={transferMemo(row.id)} />
             {nameMismatch && <p role="alert" className="rounded-lg bg-warning-tint p-2 text-xs text-warning">Tên chủ TK khác tên KYC. Kiểm tra kỹ trước khi chuyển.</p>}
@@ -72,7 +85,7 @@ export function TransferDialog({ row, onClose }: { row: WithdrawalRow; onClose: 
               return r;
             }}
           />
-          <Button disabled={pending || !refOk || !row.bankVerified} onClick={() => run(() => markPaid([row.id], ref), true)}>
+          <Button disabled={pending || !target || !refOk || !row.bankVerified} onClick={() => run(() => markPaid(row.id, ref), true)}>
             {pending ? "Đang xử lý..." : "Đã chuyển"}
           </Button>
         </div>

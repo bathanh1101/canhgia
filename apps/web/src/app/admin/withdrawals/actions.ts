@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { fail, ok, type ActionResult } from "@/lib/admin/action-result";
 import { requireAdmin } from "@/lib/admin/require-admin";
-import type { RowResult } from "@/components/admin/withdrawals/types";
+import type { PayoutTarget, RowResult } from "@/components/admin/withdrawals/types";
 import { idsSchema, reasonSchema, settingsSchema, transferRefSchema } from "./schemas";
 
+const DUPLICATE_REF = "Mã giao dịch này đã được dùng cho một yêu cầu khác.";
 const bad = () => fail({ message: "invalid_input" });
 const refresh = () => revalidatePath("/admin/withdrawals");
 
@@ -43,15 +44,28 @@ export async function claimWithdrawals(ids: string[]): Promise<ActionResult<RowR
   return bulkMessage(results, "Đã nhận xử lý tất cả yêu cầu");
 }
 
-export async function markPaid(ids: string[], transferRef: string): Promise<ActionResult<RowResult[]>> {
-  const parsedIds = idsSchema.safeParse(ids);
+/** Pay ONE withdrawal: a bank transfer reference proves at most one transfer (unique index in SQL). */
+export async function markPaid(id: string, transferRef: string): Promise<ActionResult<RowResult[]>> {
+  const parsedId = idsSchema.safeParse([id]);
   const parsedRef = transferRefSchema.safeParse(transferRef);
-  if (!parsedIds.success || !parsedRef.success) return bad();
+  if (!parsedId.success || !parsedRef.success) return bad();
   const { supabase } = await requireAdmin();
-  const { data, error } = await supabase.rpc("admin_mark_paid", { p_ids: parsedIds.data, p_transfer_ref: parsedRef.data });
-  if (error) return fail(error);
+  const { data, error } = await supabase.rpc("admin_mark_paid", { p_ids: parsedId.data, p_transfer_ref: parsedRef.data });
+  if (error) return error.code === "23505" ? { ok: false, error: DUPLICATE_REF } : fail(error);
   refresh();
   return bulkMessage(toResults(data), "Đã đánh dấu đã chuyển khoản");
+}
+
+/** Full account number/name, only for a row this admin has claimed (processing, claimed_by = me, unpaid). */
+export async function getPayoutTarget(id: string): Promise<ActionResult<PayoutTarget>> {
+  const parsed = idsSchema.safeParse([id]);
+  if (!parsed.success) return bad();
+  const { supabase, adminId } = await requireAdmin();
+  const { data, error } = await supabase.from("admin_withdrawals")
+    .select("account_number,account_name").eq("id", id).eq("status", "processing").eq("claimed_by", adminId).maybeSingle();
+  if (error) return fail(error);
+  if (!data?.account_number) return fail({ message: "not_claimer" });
+  return ok(undefined, { accountNumber: data.account_number, accountName: data.account_name ?? "" });
 }
 
 export async function rejectWithdrawals(ids: string[], reason: string): Promise<ActionResult<RowResult[]>> {

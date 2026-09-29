@@ -14,7 +14,7 @@ import { BulkActionBar } from "./bulk-action-bar";
 import { RiskBadge } from "./risk-badge";
 import { TransferDialog } from "./transfer-dialog";
 import type { WithdrawalRow } from "./types";
-import { RECLAIM_AFTER_MIN, bulkEligible, claimState, isHighRisk, maskAccount, minutesSince } from "./withdrawal-state";
+import { RECLAIM_AFTER_MIN, bulkEligible, claimState, isHighRisk, minutesSince } from "./withdrawal-state";
 
 export function WithdrawalsTable({ rows, adminId }: { rows: WithdrawalRow[]; adminId: string }) {
   const [now] = useState(() => Date.now()); // fixed per mount; the page is re-fetched on every action
@@ -69,7 +69,7 @@ export function WithdrawalsTable({ rows, adminId }: { rows: WithdrawalRow[]; adm
                   <TableCell><div>{r.email}</div><div className="text-xs text-text-muted">{r.kycName ?? "Chưa KYC"}</div></TableCell>
                   <TableCell className="font-semibold">{formatVnd(r.amount)}</TableCell>
                   <TableCell>
-                    <div>{r.bankName} · {maskAccount(r.accountNumber)}</div>
+                    <div>{r.bankName} · {r.accountMask}</div>
                     {!r.bankVerified && <Badge tone="warning">Chưa xác minh tên</Badge>}
                   </TableCell>
                   <TableCell>

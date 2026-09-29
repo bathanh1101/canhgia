@@ -15,6 +15,10 @@ export default async function AdminMfaPage() {
 
   const { data: factors } = await supabase.auth.mfa.listFactors();
   const verified = factors?.totp[0] ?? null;
+  if (!verified) {
+    const { data: candidate } = await supabase.rpc("is_admin_candidate");
+    if (!candidate) redirect("/admin/login?e=forbidden");
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-bg p-4">

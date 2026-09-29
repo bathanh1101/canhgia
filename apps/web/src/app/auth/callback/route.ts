@@ -14,6 +14,12 @@ export async function GET(request: NextRequest) {
     const supabase = await createServerSupabase();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) return NextResponse.redirect(`${base}/admin/login?e=oauth`);
+    // Google can sign in anyone: only accounts with an `admins` row may continue; others are signed out at once.
+    const { data: candidate, error: candErr } = await supabase.rpc("is_admin_candidate");
+    if (candErr || !candidate) {
+      await supabase.auth.signOut();
+      return NextResponse.redirect(`${base}/admin/login?e=forbidden`);
+    }
   } catch {
     return NextResponse.redirect(`${base}/admin/login?e=oauth`);
   }

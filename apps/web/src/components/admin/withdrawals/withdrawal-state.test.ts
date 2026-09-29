@@ -6,7 +6,7 @@ const NOW = Date.parse("2026-10-05T10:00:00Z");
 const ago = (m: number) => new Date(NOW - m * 60000).toISOString();
 const row = (o: Partial<WithdrawalRow> = {}): WithdrawalRow => ({
   id: "1a2b3c4d-0000-0000-0000-000000000000", createdAt: ago(90), userId: "u", email: "u@x", kycName: "A", amount: 100000,
-  status: "pending", bankName: "VCB", bankBin: "970436", accountNumber: "1020304050", accountName: "A", bankAccountId: "b",
+  status: "pending", bankName: "VCB", bankBin: "970436", accountMask: "******4050", bankAccountId: "b",
   bankVerified: true, snapshotRisk: "low", liveRiskScore: 0, liveRiskLevel: "low", flagCount: 0, claimedBy: null,
   claimedByEmail: null, claimedAt: null, paidByEmail: null, paidAt: null, transferRef: null, rejectReason: null, ...o,
 });

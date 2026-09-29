@@ -8,8 +8,8 @@ export interface WithdrawalRow {
   status: "pending" | "processing" | "paid" | "rejected";
   bankName: string;
   bankBin: string;
-  accountNumber: string;
-  accountName: string;
+  /** Masked (`******4050`). Full number/name come from getPayoutTarget in the transfer dialog only. */
+  accountMask: string;
   bankAccountId: string;
   bankVerified: boolean;
   snapshotRisk: string;
@@ -30,4 +30,10 @@ export interface RowResult {
   id: string;
   ok: boolean;
   error?: string | null;
+}
+
+/** Full payout destination, fetched on demand for a withdrawal the current admin has claimed. */
+export interface PayoutTarget {
+  accountNumber: string;
+  accountName: string;
 }
