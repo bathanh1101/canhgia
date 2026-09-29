@@ -1,12 +1,12 @@
 // Backend integration: sync-transactions cycle (J1/J2 journeys)
-import { describe, it, beforeAll, afterAll } from 'npm:@std/testing@1.0.0/bdd'
-import { assertEquals, assert } from 'npm:@std/assert@1.0.0'
-import { startMock, makeConversions, type Mock } from '../functions/tests/mock-accesstrade.ts'
+import { describe, it, beforeAll, afterAll } from 'jsr:@std/testing@1.0.0/bdd'
+import { assertEquals, assert } from 'jsr:@std/assert@1.0.0'
+import { startMock, makeConversions, type Mock } from '../../functions/tests/mock-accesstrade.ts'
 
 const API_URL = Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:55321'
-const API_KEY = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
-const CRON_SECRET = 'dev-cron-secret'
+const API_KEY = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
+const CRON_SECRET = 'super-secret-jwt-token-with-at-least-32-characters-long'
 
 const testUsers = {
   admin: { id: '11111111-1111-1111-1111-111111111111', email: 'admin@test.canhgia.local' },
@@ -72,7 +72,7 @@ describe('Backend sync-transactions', () => {
 
     // Sync and check wallet
     const syncRes = await syncTransactions()
-    assertEquals(syncRes?.synced_orders || 0 > 0, true)
+    assertEquals((syncRes?.synced_orders || 0) > 0, true)
 
     const wallet = await getWallet(testUsers.minh.id)
     assert(wallet.pending_vnd >= 150000, `Expected pending ≥ 150k, got ${wallet.pending_vnd}`)

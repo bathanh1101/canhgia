@@ -1,7 +1,7 @@
 // Backend integration: bad AT data handling + admin-at-lookup
-import { describe, it, beforeAll, afterAll } from 'npm:@std/testing@1.0.0/bdd'
-import { assertEquals } from 'npm:@std/assert@1.0.0'
-import { startMock, makeConversions, type Mock } from '../functions/tests/mock-accesstrade.ts'
+import { describe, it, beforeAll, afterAll } from 'jsr:@std/testing@1.0.0/bdd'
+import { assertEquals } from 'jsr:@std/assert@1.0.0'
+import { startMock, makeConversions, type Mock } from '../../functions/tests/mock-accesstrade.ts'
 
 const API_URL = Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:55321'
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'

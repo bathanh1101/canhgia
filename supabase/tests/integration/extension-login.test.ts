@@ -1,6 +1,6 @@
 // Backend integration: extension QR-pair login flow
-import { describe, it } from 'npm:@std/testing@1.0.0/bdd'
-import { assertEquals, assert } from 'npm:@std/assert@1.0.0'
+import { describe, it } from 'jsr:@std/testing@1.0.0/bdd'
+import { assertEquals, assert } from 'jsr:@std/assert@1.0.0'
 
 const API_URL = Deno.env.get('SUPABASE_URL') || 'http://127.0.0.1:55321'
 const API_KEY = Deno.env.get('SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
