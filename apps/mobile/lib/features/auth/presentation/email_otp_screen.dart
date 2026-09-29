@@ -26,6 +26,7 @@ class _EmailOtpScreenState extends ConsumerState<EmailOtpScreen> {
   final _email = TextEditingController();
   final _code = TextEditingController();
   String? _captcha;
+  var _captchaEpoch = 0;
   var _codeStep = false;
   var _secondsLeft = 0;
   Timer? _timer;
@@ -53,7 +54,17 @@ class _EmailOtpScreenState extends ConsumerState<EmailOtpScreen> {
 
   Future<void> _send() async {
     await ref.read(authControllerProvider.notifier).sendEmailOtp(_email.text, captchaToken: _captcha);
-    if (!mounted || ref.read(authControllerProvider).hasError) return;
+    if (!mounted) return;
+    if (ref.read(authControllerProvider).hasError) {
+      // Turnstile tokens are single-use: force a fresh challenge for the retry.
+      if (Env.captchaRequired) {
+        setState(() {
+          _captcha = null;
+          _captchaEpoch++;
+        });
+      }
+      return;
+    }
     setState(() => _codeStep = true);
     _startCooldown();
   }
@@ -95,7 +106,7 @@ class _EmailOtpScreenState extends ConsumerState<EmailOtpScreen> {
               decoration: const InputDecoration(hintText: 'ban@example.com'),
             ),
             const SizedBox(height: 16),
-            TurnstileCaptcha(onToken: (t) => setState(() => _captcha = t)),
+            TurnstileCaptcha(key: ValueKey(_captchaEpoch), onToken: (t) => setState(() => _captcha = t)),
             const SizedBox(height: 16),
             AppButton(label: 'Gửi mã', loading: busy, onPressed: captchaOk ? _send : null),
           ] else ...[

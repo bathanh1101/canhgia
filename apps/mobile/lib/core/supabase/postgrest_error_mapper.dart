@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+// http is a transitive dependency (pubspec is frozen for this phase).
+// ignore: depend_on_referenced_packages
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Vietnamese messages for the backend error vocabulary
@@ -68,11 +71,13 @@ class AppFailure implements Exception {
       final code = d is Map ? '${d['error'] ?? ''}' : '';
       return AppFailure(code, detail: d is Map ? _parseDetail(d['detail']) : const {});
     }
+    if (error is AuthRetryableFetchException) return const AppFailure('network');
     if (error is AuthException) {
       final code = error.code ?? '';
       return AppFailure(code, customMessage: _authMessagesVi[code] ?? errorMessagesVi['unknown']);
     }
-    if (error is SocketException || error is TimeoutException || error is HttpException) {
+    if (error is SocketException || error is TimeoutException || error is HttpException ||
+        error is http.ClientException) {
       return const AppFailure('network');
     }
     return const AppFailure('unknown');

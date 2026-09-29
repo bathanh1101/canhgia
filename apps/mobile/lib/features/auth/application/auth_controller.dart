@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/device/push_token_service.dart';
+import '../../../core/providers/referral_store.dart';
 import '../../../core/security/biometric_pin_vault.dart';
 import '../../../core/supabase/supabase_providers.dart';
 import '../data/auth_repository.dart';
@@ -24,10 +27,22 @@ class AuthController extends Notifier<AsyncValue<void>> {
   Future<void> verifyEmailOtp(String email, String code) => _run(() => _repo.verifyEmailOtp(email, code));
 
   Future<void> signOut() => _run(() async {
-        await ref.read(biometricPinVaultProvider).disable();
+        // Local cleanup is best effort and ordered before signOut (the push_tokens
+        // delete needs the live session); it must never keep the user signed in.
+        await _cleanup('push token', ref.read(pushTokenServiceProvider).unregister);
+        await _cleanup('biometric vault', ref.read(biometricPinVaultProvider).disable);
+        await _cleanup('pending referral', ref.read(referralStoreProvider).clear);
         await _repo.signOut();
         return null;
       });
+
+  Future<void> _cleanup(String what, Future<void> Function() step) async {
+    try {
+      await step();
+    } on Object catch (e) {
+      debugPrint('sign-out cleanup ($what) failed: $e');
+    }
+  }
 
   Future<void> _run(Future<Object?> Function() action) async {
     if (state.isLoading) return;

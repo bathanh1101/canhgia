@@ -1,1 +1,5 @@
 #include "Generated.xcconfig"
+// Set per environment (not dart-defines): Google iOS client, its reversed id, and the universal-link host.
+GOOGLE_IOS_CLIENT_ID =
+GOOGLE_IOS_REVERSED_CLIENT_ID = com.googleusercontent.apps.REPLACE_ME
+APP_LINK_HOST = canhgia.vn

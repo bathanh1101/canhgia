@@ -1,3 +1,5 @@
+import 'package:canhgia_mobile/core/device/push_token_service.dart';
+import 'package:canhgia_mobile/core/providers/referral_store.dart';
 import 'package:canhgia_mobile/core/security/biometric_pin_vault.dart';
 import 'package:canhgia_mobile/core/supabase/postgrest_error_mapper.dart';
 import 'package:canhgia_mobile/features/auth/application/auth_controller.dart';
@@ -9,20 +11,32 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class _MockRepo extends Mock implements AuthRepository {}
 
+class _MockPush extends Mock implements PushTokenService {}
+
+class _MockReferral extends Mock implements ReferralStore {}
+
 class _MockVault extends Mock implements BiometricPinVault {}
 
 void main() {
   late _MockRepo repo;
   late _MockVault vault;
+  late _MockPush push;
+  late _MockReferral referral;
   late ProviderContainer c;
 
   setUp(() {
     repo = _MockRepo();
     vault = _MockVault();
+    push = _MockPush();
+    referral = _MockReferral();
     when(() => vault.disable()).thenAnswer((_) async {});
+    when(() => push.unregister()).thenAnswer((_) async {});
+    when(() => referral.clear()).thenAnswer((_) async {});
     c = ProviderContainer(overrides: [
       authRepositoryProvider.overrideWithValue(repo),
       biometricPinVaultProvider.overrideWithValue(vault),
+      pushTokenServiceProvider.overrideWithValue(push),
+      referralStoreProvider.overrideWithValue(referral),
     ]);
     addTearDown(c.dispose);
   });
@@ -90,9 +104,20 @@ void main() {
     expect(c.read(authControllerProvider).hasError, isFalse);
   });
 
-  test('signOut wipes the biometric vault before signing out', () async {
+  test('signOut cleans push token, vault, referral in order, then signs out', () async {
     when(() => repo.signOut()).thenAnswer((_) async {});
     await ctl().signOut();
-    verifyInOrder([() => vault.disable(), () => repo.signOut()]);
+    verifyInOrder([() => push.unregister(), () => vault.disable(), () => referral.clear(), () => repo.signOut()]);
+    expect(c.read(authControllerProvider).hasError, isFalse);
+  });
+
+  test('signOut still runs when every cleanup step throws', () async {
+    when(() => push.unregister()).thenThrow(Exception('fcm'));
+    when(() => vault.disable()).thenThrow(Exception('keystore'));
+    when(() => referral.clear()).thenThrow(Exception('prefs'));
+    when(() => repo.signOut()).thenAnswer((_) async {});
+    await ctl().signOut();
+    verify(() => repo.signOut()).called(1);
+    expect(c.read(authControllerProvider).hasError, isFalse);
   });
 }

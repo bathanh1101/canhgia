@@ -7,11 +7,18 @@ import '../providers/auth_session_provider.dart';
 
 /// Keeps the withdrawal PIN in the platform keystore behind a biometric prompt.
 /// Convenience only: the server still verifies the PIN (`verify_pin`) every time.
+/// Only an app-level gate (Keystore-wrapped, not bound to biometric enrolment);
+/// the server-side `verify_pin`, 24h hold and pin_locked are the real controls.
+/// Any PIN change/reset flow MUST call [disable] (the stored PIN goes stale).
 /// Entries are per user id so an account switch never exposes another user's PIN.
 class BiometricPinVault {
   BiometricPinVault(this._uid, {LocalAuthentication? auth, FlutterSecureStorage? storage})
       : _auth = auth ?? LocalAuthentication(),
-        _storage = storage ?? const FlutterSecureStorage();
+        _storage = storage ??
+            const FlutterSecureStorage(
+              aOptions: AndroidOptions(resetOnError: true),
+              iOptions: IOSOptions(accessibility: KeychainAccessibility.unlocked_this_device),
+            );
 
   final String? _uid;
   final LocalAuthentication _auth;

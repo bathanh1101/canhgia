@@ -1,4 +1,5 @@
 import 'package:canhgia_mobile/features/account/data/account_repository.dart';
+import '../../core/device/http_capture.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -30,5 +31,12 @@ void main() {
     expect(AccountRepository.isValidCode(uuid), isTrue);
     expect(AccountRepository.isValidCode(null), isFalse);
     expect(AccountRepository.isValidCode("'; drop table"), isFalse);
+  });
+
+  test('stats never selects * on grant-restricted orders (select=id)', () async {
+    final c = capturingClient();
+    await AccountRepository(c.client).stats('uid-1');
+    final orders = c.requests.firstWhere((r) => r.url.path.endsWith('/orders'));
+    expect(orders.url.queryParameters['select'], 'id');
   });
 }

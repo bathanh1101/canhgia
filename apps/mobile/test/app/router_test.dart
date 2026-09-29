@@ -82,21 +82,11 @@ void main() {
     expect((await SharedPreferences.getInstance()).getString('pending_referral_code'), isNull);
   });
 
-  testWidgets('handoff stubs are registered: feature routes resolve when signed in', (t) async {
+  testWidgets('feature routes are registered (match, never the not-found page)', (t) async {
     final c = await _pump(t, prefs: {'onboarding_seen_v1': true});
-    c.read(_signedInFlag.notifier).set(true);
-    await t.pumpAndSettle();
-    for (final (path, title) in [
-      (RoutePaths.withdraw, 'Rút tiền'),
-      (RoutePaths.search, 'Tìm kiếm'),
-      (RoutePaths.searchResults, 'Kết quả tìm kiếm'),
-      ('/orders/1', 'Chi tiết đơn hàng'),
-      (RoutePaths.notifications, 'Thông báo'),
-      (RoutePaths.pin, 'Mã PIN'),
-    ]) {
-      c.read(routerProvider).go(path);
-      await t.pumpAndSettle();
-      expect(find.text(title), findsWidgets, reason: path);
+    final config = c.read(routerProvider).configuration;
+    for (final path in [RoutePaths.withdraw, RoutePaths.search, RoutePaths.searchResults, '/orders/1', RoutePaths.notifications, RoutePaths.pin]) {
+      expect(config.findMatch(Uri.parse(path)).isError, isFalse, reason: path);
     }
   });
 }

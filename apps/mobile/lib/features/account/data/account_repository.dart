@@ -53,7 +53,8 @@ class AccountRepository {
 
   Future<AccountStats> stats(String uid, {String? tierCode}) async {
     final r = await Future.wait<Object?>([
-      _db.from('orders').count().eq('user_id', uid),
+      // orders has column-level grants: `count()` alone sends select=* and gets 42501.
+      _db.from('orders').select('id').eq('user_id', uid).count(CountOption.exact).then((r) => r.count),
       _db.from('referrals').count().eq('referrer_id', uid),
       _db.from('bank_accounts').count().eq('user_id', uid),
       _db.from('user_devices').count().eq('user_id', uid),

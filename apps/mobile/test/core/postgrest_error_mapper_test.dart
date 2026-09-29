@@ -6,6 +6,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  test('retryable auth fetch failure (offline login) maps to the network message', () {
+    final e = AuthRetryableFetchException(message: 'offline');
+    expect(AppFailure.from(e).code, 'network');
+    expect(mapErrorMessage(e), errorMessagesVi['network']);
+  });
+
   // docs/backend-contracts.md vocabulary: keep in sync when the backend adds codes.
   const userCodes = [
     'forbidden', 'rate_limited', 'account_locked', 'insufficient_balance', 'pin_invalid', 'pin_locked',

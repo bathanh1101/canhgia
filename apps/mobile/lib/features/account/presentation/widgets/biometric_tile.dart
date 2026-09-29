@@ -7,7 +7,8 @@ import '../../../../core/security/biometric_pin_vault.dart';
 import '../../../../core/supabase/postgrest_error_mapper.dart';
 import 'account_tile.dart';
 
-final _biometricStateProvider = FutureProvider.autoDispose<({bool supported, bool enabled})>((ref) async {
+/// Refresh after anything that changes the vault (PIN change, toggle).
+final biometricStateProvider = FutureProvider.autoDispose<({bool supported, bool enabled})>((ref) async {
   final v = ref.watch(biometricPinVaultProvider);
   return (supported: await v.isSupported(), enabled: await v.isEnabled());
 });
@@ -38,20 +39,20 @@ class BiometricTile extends ConsumerWidget {
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(mapErrorMessage(e))));
     }
-    ref.invalidate(_biometricStateProvider);
+    ref.invalidate(biometricStateProvider);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final s = ref.watch(_biometricStateProvider).value;
+    final s = ref.watch(biometricStateProvider).value;
     final supported = s?.supported ?? false;
     return AccountTile(
       icon: Icons.fingerprint,
       title: 'Đăng nhập FaceID / Vân tay',
-      value: supported || s == null ? null : 'Không hỗ trợ',
+      value: supported || s == null || s.enabled ? null : 'Không hỗ trợ',
       trailing: Switch(
         value: s?.enabled ?? false,
-        onChanged: supported ? (v) => _toggle(context, ref, v) : null,
+        onChanged: (supported || (s?.enabled ?? false)) ? (v) => _toggle(context, ref, v) : null,
       ),
     );
   }

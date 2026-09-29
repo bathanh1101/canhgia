@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Build-time config, supplied with `--dart-define-from-file=env/dev.json`.
 /// Only public values belong here (anon key, client ids) - never a service key.
 class Env {
@@ -11,7 +13,9 @@ class Env {
   static const googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
   static const googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
   static const turnstileSiteKey = String.fromEnvironment('TURNSTILE_SITE_KEY');
-  static const turnstileTestToken = String.fromEnvironment('TURNSTILE_TEST_TOKEN');
+  static const _turnstileTestTokenDefine = String.fromEnvironment('TURNSTILE_TEST_TOKEN');
+  /// Integration-test hook: ignored outside debug builds.
+  static String get turnstileTestToken => kDebugMode ? _turnstileTestTokenDefine : '';
   static const fcmEnabled = bool.fromEnvironment('FCM_ENABLED');
 
   static bool get supabaseConfigured => supabaseAnonKey.isNotEmpty;

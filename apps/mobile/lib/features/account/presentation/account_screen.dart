@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/route_paths.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../../../core/providers/wallet_provider.dart';
+import '../../../core/security/biometric_pin_vault.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../auth/application/auth_controller.dart';
 import '../application/account_providers.dart';
@@ -18,6 +19,21 @@ class AccountScreen extends ConsumerWidget {
 
   String? _kycLabel(String? s) =>
       switch (s) { 'verified' => '✓ Đã xác thực', 'pending' => 'Đang chờ duyệt', 'rejected' => 'Bị từ chối', _ => 'Chưa xác thực' };
+
+  /// Changing the PIN makes a stored biometric PIN stale (wrong tries count toward
+  /// pin_locked), so drop it first; the user can re-enable it afterwards.
+  Future<void> _openPin(BuildContext context, WidgetRef ref, bool hasPin) async {
+    if (hasPin) {
+      try {
+        await ref.read(biometricPinVaultProvider).disable();
+      } on Object catch (e) {
+        debugPrint('vault disable failed: $e');
+      }
+      ref.invalidate(biometricStateProvider);
+    }
+    if (context.mounted) await context.push(RoutePaths.pinFor(hasPin ? 'change' : 'create'));
+    ref.invalidate(biometricStateProvider);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -57,7 +73,7 @@ class AccountScreen extends ConsumerWidget {
                   icon: Icons.pin_outlined,
                   title: 'Mã PIN rút tiền',
                   value: hasPin ? 'Đã bật' : 'Chưa đặt',
-                  onTap: () => context.push(RoutePaths.pinFor(hasPin ? 'change' : 'create')),
+                  onTap: () => _openPin(context, ref, hasPin),
                 ),
                 BiometricTile(hasPin: hasPin),
                 AccountTile(

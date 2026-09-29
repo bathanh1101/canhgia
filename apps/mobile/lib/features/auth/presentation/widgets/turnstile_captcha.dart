@@ -20,6 +20,7 @@ class TurnstileCaptcha extends StatefulWidget {
 class _TurnstileCaptchaState extends State<TurnstileCaptcha> {
   static final _siteKeyShape = RegExp(r'^[A-Za-z0-9_-]+$');
   WebViewController? _web;
+  var _badConfig = false;
 
   @override
   void initState() {
@@ -30,7 +31,8 @@ class _TurnstileCaptchaState extends State<TurnstileCaptcha> {
       return;
     }
     if (!_siteKeyShape.hasMatch(Env.turnstileSiteKey)) {
-      throw StateError('TURNSTILE_SITE_KEY has an unexpected format');
+      _badConfig = true;
+      return;
     }
     _web = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -56,6 +58,7 @@ callback:function(t){Turnstile.postMessage('ok:'+t)},
   @override
   Widget build(BuildContext context) {
     if (Env.turnstileTestToken.isNotEmpty || Env.turnstileSiteKey.isEmpty) return const SizedBox.shrink();
+    if (_badConfig) return const Text('Cấu hình captcha không hợp lệ.', style: AppText.caption);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

@@ -37,8 +37,8 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>io.canhgia.app</string>
-				<!-- Add the reversed iOS client id (com.googleusercontent.apps.<id>) once the Google iOS client exists. -->
+				<!-- Reversed Google iOS client id; set GOOGLE_IOS_REVERSED_CLIENT_ID in ios/Flutter/*.xcconfig. -->
+				<string>$(GOOGLE_IOS_REVERSED_CLIENT_ID)</string>
 			</array>
 		</dict>
 	</array>

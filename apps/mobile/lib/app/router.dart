@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/providers/auth_session_provider.dart';
 import '../core/providers/referral_store.dart';
+import '../core/supabase/supabase_providers.dart';
 import '../core/widgets/placeholder_page.dart';
 import '../features/account/account_routes.dart';
 import '../features/auth/auth_routes.dart';
@@ -29,6 +30,17 @@ import 'route_paths.dart';
 import 'router_redirect.dart';
 import 'shell/main_shell_screen.dart';
 
+/// Signed in: bind right away (server rejects old/duplicate); otherwise keep until login.
+Future<void> _acceptReferral(Ref ref, String code) async {
+  try {
+    final store = ref.read(referralStoreProvider);
+    if (!await store.save(code) || !ref.read(isSignedInProvider)) return;
+    await bindPendingReferral(ref.read(supabaseProvider), store);
+  } on Object catch (e) {
+    debugPrint('referral bind failed: $e');
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
   // Re-run redirects whenever the session or onboarding flag changes.
   final refresh = ValueNotifier<int>(0);
@@ -43,7 +55,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final uri = state.uri;
       final code = referralCodeFromPath(uri.path);
       if (code != null) {
-        ref.read(referralStoreProvider).save(code);
+        _acceptReferral(ref, code);
         return RoutePaths.home;
       }
       if (isAuthCallback(uri)) return RoutePaths.home;

@@ -13,7 +13,7 @@ void main() {
 
   setUp(() {
     auth = _MockAuth();
-    repo = AuthRepository(auth, googleTokens: () async => (idToken: 'id', accessToken: 'at'));
+    repo = AuthRepository(auth, googleTokens: (_) async => (idToken: 'id', accessToken: 'at'));
   });
 
   test('sendEmailOtp passes trimmed email, shouldCreateUser and captcha', () async {
@@ -52,5 +52,17 @@ void main() {
       () => repo.signInWithGoogle(),
       throwsA(isA<AppFailure>().having((f) => f.code, 'code', 'google_not_configured')),
     );
+  });
+
+  group('Google nonce', () {
+    test('hashNonce is sha256 hex (known vector)', () {
+      expect(hashNonce('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+    });
+
+    test('generateRawNonce is 64 hex chars and differs per call', () {
+      final a = generateRawNonce();
+      expect(a, matches(RegExp(r'^[0-9a-f]{64}$')));
+      expect(generateRawNonce(), isNot(a));
+    });
   });
 }

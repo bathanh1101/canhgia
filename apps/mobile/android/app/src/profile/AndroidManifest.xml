@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Local Supabase over http (10.0.2.2 / LAN IPs). Never in the main manifest. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>
