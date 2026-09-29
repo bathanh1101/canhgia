@@ -9,10 +9,21 @@ select vault.create_secret('dev-cron-secret', 'cron_secret')
  where not exists (select 1 from vault.secrets where name = 'cron_secret');
 
 -- users (profiles + wallets via trigger): 1 admin, 2 shoppers
-insert into auth.users (id, email, raw_user_meta_data) values
-  ('11111111-1111-1111-1111-111111111111', 'admin@test.canhgia.local', '{"full_name":"Admin Test"}'),
-  ('22222222-2222-2222-2222-222222222222', 'minh@test.canhgia.local', '{"full_name":"Minh Nguyen"}'),
-  ('33333333-3333-3333-3333-333333333333', 'lan@test.canhgia.local', '{"full_name":"Lan Tran"}');
+-- aud/role/email_confirmed_at/identities are what GoTrue needs to find these users for OTP + generate_link;
+-- token columns are '' (not NULL) because GoTrue scans them into non-nullable strings.
+insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token, email_change_token_new, email_change, email_change_token_current, phone_change,
+  phone_change_token, reauthentication_token, created_at, updated_at) values
+  ('11111111-1111-1111-1111-111111111111', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin@test.canhgia.local', now(),
+   '{"provider":"email","providers":["email"]}', '{"full_name":"Admin Test"}', '', '', '', '', '', '', '', '', now(), now()),
+  ('22222222-2222-2222-2222-222222222222', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'minh@test.canhgia.local', now(),
+   '{"provider":"email","providers":["email"]}', '{"full_name":"Minh Nguyen"}', '', '', '', '', '', '', '', '', now(), now()),
+  ('33333333-3333-3333-3333-333333333333', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'lan@test.canhgia.local', now(),
+   '{"provider":"email","providers":["email"]}', '{"full_name":"Lan Tran"}', '', '', '', '', '', '', '', '', now(), now());
+insert into auth.identities (id, user_id, provider_id, provider, identity_data, created_at, updated_at)
+select gen_random_uuid(), u.id, u.id::text, 'email',
+       jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true), now(), now()
+  from auth.users u where u.id in ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333');
 insert into public.admins (user_id) values ('11111111-1111-1111-1111-111111111111');
 update public.profiles set vip_tier_code = 'dong' where id in ('22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333');
 update public.profiles set vip_tier_code = 'bac' where id = '22222222-2222-2222-2222-222222222222';
