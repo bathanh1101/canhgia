@@ -1,0 +1,54 @@
+name: deploy-web
+
+# Manual. Vercel project root directory = apps/web (set in the Vercel dashboard); env vars live in Vercel, not here.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        type: choice
+        options: [preview, production]
+        default: preview
+
+concurrency: deploy-web-${{ inputs.target }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Check secrets
+        id: gate
+        run: |
+          missing=""
+          for v in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::Skipping deploy, missing secrets:$missing"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - if: steps.gate.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Vercel pull + build + deploy
+        if: steps.gate.outputs.ready == 'true'
+        env:
+          TARGET: ${{ inputs.target }}
+        run: |
+          flag=""; env_name=preview
+          if [ "$TARGET" = production ]; then flag="--prod"; env_name=production; fi
+          npx --yes vercel@latest pull --yes --environment="$env_name" --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest build $flag --token="$VERCEL_TOKEN"
+          npx --yes vercel@latest deploy --prebuilt $flag --token="$VERCEL_TOKEN"

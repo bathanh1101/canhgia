@@ -1,0 +1,48 @@
+name: deploy-extension
+
+# Manual. Builds the Chrome Web Store zip as an artifact; upload it in the CWS dashboard (visibility Unlisted).
+on:
+  workflow_dispatch:
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      WXT_SUPABASE_URL: ${{ secrets.WXT_SUPABASE_URL }}
+      WXT_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.WXT_SUPABASE_PUBLISHABLE_KEY }}
+      WXT_LANDING_URL: ${{ secrets.WXT_LANDING_URL }}
+      WXT_EXTENSION_KEY: ${{ secrets.WXT_EXTENSION_KEY }}
+    steps:
+      - name: Check secrets
+        id: gate
+        run: |
+          missing=""
+          for v in WXT_SUPABASE_URL WXT_SUPABASE_PUBLISHABLE_KEY WXT_LANDING_URL; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::Skipping build, missing secrets:$missing"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
+      - uses: pnpm/action-setup@v4
+        if: steps.gate.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.ready == 'true'
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - if: steps.gate.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.gate.outputs.ready == 'true'
+        run: pnpm --filter ./apps/extension test
+      - if: steps.gate.outputs.ready == 'true'
+        run: pnpm --filter ./apps/extension zip
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          name: extension-zip
+          path: apps/extension/.output/*.zip
+          if-no-files-found: error

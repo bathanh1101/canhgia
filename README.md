@@ -40,4 +40,7 @@ Base URLs come from env `WEB_BASE_URL` / `APP_BASE_URL` (no domain yet; Vercel `
 A missing item at its phase start means that phase is BLOCKED, not improvised.
 
 ## Docs
-`docs/design-tokens.md`, `docs/code-standards.md`, `docs/accesstrade-capability-matrix.md` (spike pending), `docs/accesstrade-samples/`.
+`docs/system-architecture.md`, `docs/deployment-guide.md` (deploy order, env matrix, go-live checklist), `docs/project-changelog.md`, `docs/development-roadmap.md`, `docs/code-standards.md`, `docs/design-tokens.md`, `docs/backend-contracts.md`, `docs/web-admin-conventions.md`, `docs/mobile-conventions.md`, `docs/accesstrade-capability-matrix.md`, `docs/accesstrade-samples/`.
+
+## Deploy
+Manual workflows in `.github/workflows/deploy-{supabase,web,extension,android}.yml` (`workflow_dispatch`; skip with a warning when secrets are missing). Steps and secrets: `docs/deployment-guide.md`.

@@ -1,0 +1,68 @@
+name: deploy-android
+
+# Manual. Signed release AAB as an artifact; upload to Play Console internal testing by hand (or add a Play publish step later).
+on:
+  workflow_dispatch:
+
+jobs:
+  aab:
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: apps/mobile
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      MOBILE_ENV_JSON: ${{ secrets.MOBILE_ENV_JSON }}
+    steps:
+      - name: Check secrets
+        id: gate
+        run: |
+          missing=""
+          for v in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD MOBILE_ENV_JSON; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning::Skipping build, missing secrets:$missing"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.ready == 'true'
+      - uses: actions/setup-java@v4
+        if: steps.gate.outputs.ready == 'true'
+        with: { distribution: temurin, java-version: '17' }
+      - uses: subosito/flutter-action@v2
+        if: steps.gate.outputs.ready == 'true'
+        with: { channel: stable, cache: true }
+      - name: Write keystore + env
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/upload.jks"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > android/key.properties
+          printf '%s' "$MOBILE_ENV_JSON" > env/prod.json
+      - if: steps.gate.outputs.ready == 'true'
+        run: flutter pub get
+      - if: steps.gate.outputs.ready == 'true'
+        run: flutter test
+      - if: steps.gate.outputs.ready == 'true'
+        run: flutter build appbundle --release --dart-define-from-file=env/prod.json
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          name: android-aab
+          path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+      - name: Cleanup secrets
+        if: always() && steps.gate.outputs.ready == 'true'
+        run: rm -f android/key.properties env/prod.json "$RUNNER_TEMP/upload.jks"

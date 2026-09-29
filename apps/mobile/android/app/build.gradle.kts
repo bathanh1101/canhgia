@@ -1,7 +1,14 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -30,10 +37,21 @@ android {
         manifestPlaceholders["appLinkHost"] = (project.findProperty("APP_LINK_HOST") as String?) ?: "canhgia.vn"
     }
 
+    signingConfigs {
+        // android/key.properties (gitignored) is written by CI or by hand; absent = local builds fall back to the debug key.
+        if (keystoreProps.isNotEmpty()) {
+            create("release") {
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Release signing (key.properties, gitignored) is configured in the deploy phase.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }

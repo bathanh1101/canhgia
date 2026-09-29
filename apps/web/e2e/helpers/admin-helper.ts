@@ -31,17 +31,20 @@ async function fetchOTPFromMailpit(email: string): Promise<string> {
 export async function loginAsAdmin(page: Page) {
   await page.goto('/admin/login')
 
-  // Enter email
-  await page.fill('input[name="email"]', testUsers.admin.email)
-  await page.click('button:has-text("Gửi mã")')
+  // Enter email (uses id="email", not name attribute)
+  await page.fill('input[id="email"]', testUsers.admin.email)
+  await page.click('button:has-text("Gửi mã qua email")')
 
-  // Wait for OTP input and fill it
-  await expect(page.locator('input[name="otp-code"]')).toBeVisible({ timeout: 5000 })
+  // Wait for OTP code input
+  await expect(page.locator('input[id="code"]')).toBeVisible({ timeout: 5000 })
+
+  // Fetch OTP code from Mailpit
   const code = await fetchOTPFromMailpit(testUsers.admin.email)
-  await page.fill('input[name="otp-code"]', code)
-  await page.click('button:has-text("Verify")')
+  await page.fill('input[id="code"]', code)
+  await page.click('button:has-text("Đăng nhập")')
 
-  // Check if on MFA enrollment page
+  // Check if on MFA enrollment page or overview
+  await page.waitForURL(/\/(admin\/(mfa|mfa-verify|overview)|login)/, { timeout: 5000 })
   const url = page.url()
   if (url.includes('/admin/mfa')) {
     // Enroll TOTP on first login
