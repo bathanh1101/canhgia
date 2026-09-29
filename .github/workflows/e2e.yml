@@ -27,6 +27,7 @@ jobs:
           cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
           cp -r supabase/functions /tmp/claude-1000/wd/supabase/
           cp supabase/config.toml /tmp/claude-1000/wd/supabase/
+          cp -r supabase/templates /tmp/claude-1000/wd/supabase/
           ln -sf $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql
       - name: Patch rate limit in config.toml
         run: |
@@ -92,6 +93,7 @@ jobs:
           cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
           cp -r supabase/functions /tmp/claude-1000/wd/supabase/
           cp supabase/config.toml /tmp/claude-1000/wd/supabase/
+          cp -r supabase/templates /tmp/claude-1000/wd/supabase/
           ln -sf $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql
       - name: Patch rate limit in config.toml
         run: |
@@ -168,6 +170,7 @@ jobs:
           cp -r supabase/migrations /tmp/claude-1000/wd/supabase/
           cp -r supabase/functions /tmp/claude-1000/wd/supabase/
           cp supabase/config.toml /tmp/claude-1000/wd/supabase/
+          cp -r supabase/templates /tmp/claude-1000/wd/supabase/
           ln -sf $PWD/supabase/seed.sql /tmp/claude-1000/wd/supabase/seed.sql
       - name: Patch rate limit in config.toml
         run: |
