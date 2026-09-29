@@ -114,9 +114,6 @@ void main() {
       await tester.tap(accountTab);
       await tester.pumpAndSettle();
 
-      final bankBtn = find.byWidgetPredicate(
-        (w) => w is GestureDetector && w.child is Text && (w.child as Text).data?.contains('Bank') == true,
-      );
       if (find.text('Bank Accounts').evaluate().isNotEmpty) {
         await tester.tap(find.text('Bank Accounts'));
         await tester.pumpAndSettle();
