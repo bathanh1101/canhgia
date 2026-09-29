@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 // http is a transitive dependency (pubspec is frozen for this phase).
-// ignore: depend_on_referenced_packages
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 

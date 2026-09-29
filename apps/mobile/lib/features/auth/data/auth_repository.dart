@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 
 // crypto is a transitive dependency (pubspec is frozen for this phase).
-// ignore: depend_on_referenced_packages
 import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
