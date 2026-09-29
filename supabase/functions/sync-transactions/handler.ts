@@ -1,6 +1,6 @@
 import { HttpError, json, readBody, requireCronSecret, wrap } from '../_shared/request-guards.ts'
 import { type Db, rpc } from '../_shared/supabase-admin-client.ts'
-import { type AtClient, AtError, dataArray, JOB_RETRIES } from '../_shared/accesstrade-client.ts'
+import { type AtClient, AtError, dataArray, jobRetries } from '../_shared/accesstrade-client.ts'
 import type { SyncCursor } from '../_shared/sync-cursor.ts'
 import { isCursor, nextSlice, openWindow, type TxCursor, type TxWindow, windowUntil } from './windows.ts'
 import { withSub1Fallback } from './attribution-fallback.ts'
@@ -52,7 +52,7 @@ async function run(d: Deps, w: TxWindow, now: () => number) {
       const res = await d.at.get('/v1/transactions', {
         bucket: 'transactions',
         params: { since: c.since, until: c.until, page: c.page, limit: LIMIT },
-        retries: JOB_RETRIES,
+        retries: jobRetries(deadline - now()),
         waitMs: deadline - now(),
       })
       const rows = await withSub1Fallback(d.db, dataArray(res, 'transactions'))

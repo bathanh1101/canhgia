@@ -66,7 +66,9 @@ export function createFcmClient(
         return 'ok'
       }
       const j = await res.json().catch(() => null) as { error?: { details?: { errorCode?: string }[] } } | null
-      if (res.status === 404 || j?.error?.details?.some((x) => x.errorCode === 'UNREGISTERED')) return 'unregistered'
+      // a bare 404 NOT_FOUND can be a wrong FCM_PROJECT_ID and must not wipe every token: only the UNREGISTERED detail counts
+      if (j?.error?.details?.some((x) => x.errorCode === 'UNREGISTERED')) return 'unregistered'
+      if (res.status === 401) cached = null
       console.error('fcm send failed', res.status)
       return 'error'
     },

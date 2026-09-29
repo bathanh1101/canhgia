@@ -34,8 +34,16 @@ export function makeFakeDb(
     from(t: string) {
       let rows = [...(tables[t] ?? [])]
       let del = false
+      let wantCount = false
       const q = {
-        select: () => q,
+        select: (_c?: string, o?: { count?: string }) => {
+          wantCount = !!o?.count
+          return q
+        },
+        gt: (c: string, v: unknown) => {
+          rows = rows.filter((r) => String(r[c]) > String(v))
+          return q
+        },
         eq: (c: string, v: unknown) => {
           rows = rows.filter((r) => r[c] === v)
           return q
@@ -50,7 +58,8 @@ export function makeFakeDb(
           return q
         },
         maybeSingle: () => Promise.resolve({ data: rows[0] ?? null, error: null }),
-        then: (res: (v: unknown) => unknown) => Promise.resolve({ data: rows, error: null }).then(res),
+        then: (res: (v: unknown) => unknown) =>
+          Promise.resolve({ data: rows, error: null, ...(wantCount ? { count: rows.length } : {}) }).then(res),
       }
       return q
     },

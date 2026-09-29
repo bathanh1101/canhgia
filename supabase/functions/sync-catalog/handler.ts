@@ -1,6 +1,6 @@
 import { HttpError, json, readBody, requireCronSecret, wrap } from '../_shared/request-guards.ts'
 import { type Db, rpc } from '../_shared/supabase-admin-client.ts'
-import { type AtClient, AtError, dataArray, JOB_RETRIES } from '../_shared/accesstrade-client.ts'
+import { type AtClient, AtError, dataArray, JOB_RETRIES, jobRetries } from '../_shared/accesstrade-client.ts'
 import type { SyncCursor } from '../_shared/sync-cursor.ts'
 import { type MerchantRow, SHORT_HOSTS } from '../_shared/merchant-url-parser.ts'
 import { runPaged } from '../_shared/paged-sync.ts'
@@ -43,7 +43,7 @@ async function vouchers(d: Deps, now: () => number) {
       dataArray(
         await d.at.get('/v1/offers_informations', {
           bucket: 'catalog',
-          retries: JOB_RETRIES,
+          retries: jobRetries(waitMs),
           waitMs,
           params: { domain: w.domain, limit: VOUCHER_PAGE, page }, // coupon=1 returns 0 rows (live 2026-09-29)
         }),

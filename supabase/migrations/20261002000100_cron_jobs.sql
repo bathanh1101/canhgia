@@ -4,6 +4,26 @@
 --   select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
 --   select vault.create_secret('<same value as the CRON_SECRET Edge secret>', 'cron_secret');
 
+-- Same wrapper as phase 02a plus timeout_milliseconds: pg_net defaults to 5 s, sync jobs run up to ~60 s budget + retries.
+create or replace function private.invoke_edge(p_fn text, p_body jsonb) returns void
+language plpgsql security definer set search_path = pg_catalog, public, extensions as $$
+declare
+  v_url text;
+  v_secret text;
+begin
+  select decrypted_secret into v_url from vault.decrypted_secrets where name = 'project_url';
+  select decrypted_secret into v_secret from vault.decrypted_secrets where name = 'cron_secret';
+  if v_url is null or v_secret is null then
+    insert into public.sync_state (job, last_error) values (p_fn, 'vault_missing')
+    on conflict (job) do update set last_error = 'vault_missing';
+    return;
+  end if;
+  perform net.http_post(url := v_url || '/functions/v1/' || p_fn,
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-cron-secret', v_secret),
+    body := coalesce(p_body, '{}'::jsonb),
+    timeout_milliseconds := 150000);
+end $$;
+
 select cron.schedule('tx-recent', '*/20 * * * *', $c$select private.invoke_edge('sync-transactions', '{"window":"recent"}')$c$);
 select cron.schedule('tx-older', '10 */6 * * *', $c$select private.invoke_edge('sync-transactions', '{"window":"older"}')$c$);
 -- returns immediately once every datafeed merchant has been backfilled

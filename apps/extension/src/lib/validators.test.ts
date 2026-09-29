@@ -36,3 +36,10 @@ describe('chromeStorage adapter', () => {
     expect(await chromeStorage.getItem('k')).toBeNull()
   })
 })
+
+describe('parseCreateLink protocol', () => {
+  it('rejects non-https aff links', () => {
+    for (const u of ['http://x.test/a', 'javascript:alert(1)']) expect(() => parseCreateLink({ aff_link: u })).toThrow()
+    expect(parseCreateLink({ aff_link: 'https://x.test/a' }).aff_link).toBe('https://x.test/a')
+  })
+})

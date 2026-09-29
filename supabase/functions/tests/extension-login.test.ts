@@ -40,7 +40,7 @@ function setup() {
   const h = makeHandler({ db })
   const call = async (body: Row, ip: string | null = '203.0.113.9') => {
     const headers: Record<string, string> = { 'user-agent': 'Chrome/1' }
-    if (ip) headers['x-forwarded-for'] = `${ip}, 10.0.0.1`
+    if (ip) headers['x-forwarded-for'] = `6.6.6.6, ${ip}`
     const res = await h(new Request('http://x/', { method: 'POST', headers, body: JSON.stringify(body) }))
     return { status: res.status, body: await res.json() as Row }
   }
@@ -59,7 +59,7 @@ async function registerSecret(s: string) {
   return hex
 }
 
-Deno.test('start returns code and passes first-hop IP + user agent to SQL', async () => {
+Deno.test('start returns code and passes last-hop IP + user agent to SQL', async () => {
   const s = setup()
   const r = await s.call({ action: 'start', client_secret_hash: HASH })
   assertEquals([r.status, r.body.code], [200, CODE])
@@ -98,4 +98,46 @@ Deno.test('poll: bad code format and unknown action -> 400', async () => {
   const s = setup()
   assertEquals((await s.call({ action: 'poll', code: 'nope', client_secret: 'x' })).status, 400)
   assertEquals((await s.call({ action: 'steal' })).status, 400)
+})
+
+Deno.test('client IP order: cf-connecting-ip, then last XFF hop, never the spoofable first hop', async () => {
+  const s = setup()
+  const start = (h: Record<string, string>) =>
+    makeHandler({ db: s.db })(
+      new Request('http://x/', { method: 'POST', headers: h, body: JSON.stringify({ action: 'start', client_secret_hash: HASH }) }),
+    )
+  await start({ 'cf-connecting-ip': '198.51.100.7', 'x-forwarded-for': '6.6.6.6, 203.0.113.1' })
+  await start({ 'x-forwarded-for': '6.6.6.6, 203.0.113.1' })
+  assertEquals(s.db.calls.filter((c) => c.fn === 'start_extension_login').map((c) => c.args.p_ip), ['198.51.100.7', '203.0.113.1'])
+})
+
+Deno.test('start: global pending-code cap -> 429 without calling SQL', async () => {
+  const s = setup()
+  const far = new Date(Date.now() + 60_000).toISOString()
+  s.db.tables.extension_login_codes = Array.from({ length: 200 }, () => ({ status: 'pending', expires_at: far }))
+  const r = await s.call({ action: 'start', client_secret_hash: HASH })
+  assertEquals([r.status, r.body.error, s.db.calls.length], [429, 'rate_limited', 0])
+})
+
+Deno.test('poll: transient auth-admin failure is retried after consume', async () => {
+  let n = 0
+  const db = makeFakeDb({
+    handlers: { consume_extension_login: () => 'user-1' },
+    auth: {
+      admin: {
+        getUserById: () => Promise.resolve({ data: { user: { email: 'a@b.vn' } }, error: null }),
+        generateLink: () =>
+          Promise.resolve(
+            ++n < 3 ? { data: null, error: { message: 'boom' } } : { data: { properties: { hashed_token: 'ht' } }, error: null },
+          ),
+      },
+    },
+  })
+  const res = await makeHandler({ db })(
+    new Request('http://x/', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'poll', code: CODE, client_secret: 's' }),
+    }),
+  )
+  assertEquals([res.status, (await res.json()).token_hash, n], [200, 'ht', 3])
 })

@@ -177,8 +177,16 @@ Deno.test('input validation', async () => {
   assertEquals((await s.call({ merchant_id: 'nope', url: SHOPEE, source: 'app' })).body.error, 'merchant_unavailable')
   assertEquals((await s.call({ merchant_id: 'shopee', url: 'https://tiki.vn/a-p1.html', source: 'app' })).body.error, 'unsupported_url')
   assertEquals((await s.call({ merchant_id: 'shopee', url: SHOPEE, source: 'web' })).status, 400)
-  assertEquals((await s.call({ merchant_id: 'shopee', source: 'app' })).status, 400) // product_link needs url
   assertEquals((await s.call({ source: 'app' })).status, 400)
   assertEquals(s.clicks.length, 0)
+  await s.mock.close()
+})
+
+Deno.test('shopee without url falls back to the merchant landing URL', async () => {
+  const s = setup()
+  const r = await s.call({ merchant_id: 'shopee', source: 'extension' })
+  assertEquals([r.status, r.body.aff_link], [200, 'https://go.example/deep_link/X'])
+  assertEquals((s.mock.calls[0].body as Row).urls, ['https://shopee.vn/'])
+  assertEquals(s.clicks[0].resolved, 'https://shopee.vn/')
   await s.mock.close()
 })

@@ -9,14 +9,19 @@ export default defineContentScript({
     let observer: MutationObserver | null = null
     let timer: ReturnType<typeof setTimeout> | undefined
 
+    let gen = 0 // bumped by every start/stop so a start that awaited pageInfo can tell it was superseded
     const stop = () => {
+      gen++
+      clearTimeout(timer)
       observer?.disconnect()
       observer = null
     }
     const start = async (url: string) => {
       stop()
+      const mine = gen
       try {
         const info = await send('pageInfo', { url })
+        if (mine !== gen) return
         const m = info.merchant ?? findMerchant(url, info.rates)
         const parser = m && canInject(m) && pageKind(m.merchant_id, url) === 'search' ? parserFor(m.merchant_id) : undefined
         if (!m || !parser) return

@@ -80,12 +80,16 @@ Deno.test('fcm client: mints OAuth token once, sends v1 message, maps 404 to unr
     return Promise.resolve(
       tok === 'gone'
         ? Response.json({ error: { details: [{ errorCode: 'UNREGISTERED' }] } }, { status: 404 })
+        : tok === 'typo-project'
+        ? Response.json({ error: { status: 'NOT_FOUND', message: 'Requested entity was not found.' } }, { status: 404 })
         : Response.json({ name: 'm' }),
     )
   }
   const c = createFcmClient({ projectId: 'p1', serviceAccountJson: JSON.stringify({ client_email: 'a@b', private_key: pem }), fetchFn })
   const m = { title: 't', body: 'b', data: {} }
   assertEquals([await c.send('good', m), await c.send('gone', m)], ['ok', 'unregistered'])
+  // bare 404 (e.g. wrong FCM_PROJECT_ID) must not be treated as a dead token
+  assertEquals(await c.send('typo-project', m), 'error')
   assertEquals(urls.filter((u) => u.includes('oauth2')).length, 1)
   assertEquals(urls[1], 'https://fcm.googleapis.com/v1/projects/p1/messages:send')
 })

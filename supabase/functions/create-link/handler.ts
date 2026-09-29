@@ -47,7 +47,9 @@ export function makeHandler(d: Deps) {
       resolvedUrl = p.resolvedUrl
       extId = p.externalProductId
     } else if (merchant.link_api !== 'campaign_default') {
-      throw new HttpError(400, 'invalid_input', 'url')
+      // no product open (checkout, search, popup elsewhere): AT product_link accepts the merchant landing page
+      if (!merchant.domains[0]) throw new HttpError(400, 'invalid_input', 'url')
+      resolvedUrl = `https://${merchant.domains[0]}/`
     }
     const found = await findOffer(user.client, merchant.id, extId)
 
@@ -74,7 +76,9 @@ export function makeHandler(d: Deps) {
           source,
         }))
       } catch (e) {
-        await rpc(d.db, 'set_click_link', { p_click_id: click.click_id, p_aff_link: null, p_short_link: null })
+        await rpc(d.db, 'set_click_link', { p_click_id: click.click_id, p_aff_link: null, p_short_link: null }).catch((e2) =>
+          console.error('set_click_link failed', (e2 as Error).message)
+        )
         if (e instanceof AtError && e.kind === 'rate_limited') throw new HttpError(429, 'rate_limited')
         console.error('create-link failed', (e as Error).message)
         throw new HttpError(422, 'merchant_unavailable')

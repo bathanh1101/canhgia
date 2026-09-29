@@ -1,6 +1,7 @@
 # CanhGia Chrome extension (WXT, MV3)
 
 `pnpm --filter extension lint | typecheck | test | build` (build output: `.output/chrome-mv3`, load unpacked in Chrome).
+A production build (`wxt build`/`zip`) fails unless `WXT_SUPABASE_URL`, `WXT_SUPABASE_PUBLISHABLE_KEY` and `WXT_LANDING_URL` are set; dev values in `.env.example` are local only.
 
 ## Fixed extension id (needed for Google login)
 Google sign-in redirects to `https://<extension-id>.chromiumapp.org/`, so the id must be stable and allowlisted.

@@ -21,11 +21,11 @@ export function parseRates(x: unknown): MerchantRate[] {
   })
 }
 
-/** The affiliate link is navigated to, so it must be a plain http(s) URL (blocks javascript:, data:). */
+/** The affiliate link is navigated to, so it must be a https URL (blocks javascript:, data:, http:). */
 export function parseCreateLink(x: unknown): CreateLinkResult {
   if (!isObj(x) || typeof x.aff_link !== 'string') throw new Error('create-link: missing aff_link')
   const u = new URL(x.aff_link)
-  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('create-link: bad aff_link protocol')
+  if (u.protocol !== 'https:') throw new Error('create-link: bad aff_link protocol')
   return { aff_link: u.toString(), activation_hours: num(x.activation_hours) ?? 24 }
 }
 

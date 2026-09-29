@@ -110,6 +110,8 @@ export function atFromEnv(db: Db): AtClient {
 }
 
 export const JOB_RETRIES = [1000, 4000, 16000]
+// Full retry ladder only while >= 60 s of budget remain: a call started at the deadline must end well inside the lock TTL.
+export const jobRetries = (remainingMs: number): number[] => (remainingMs >= 60_000 ? JOB_RETRIES : [])
 
 /** Reads `data` as an array from an AT list response, else upstream error (never trust the shape). */
 export function dataArray(res: unknown, what: string): Record<string, unknown>[] {
