@@ -37,7 +37,7 @@ jobs:
           supabase db reset
       - name: Start mock AccessTrade server
         run: |
-          deno run --allow-net --allow-read supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
+          deno run --allow-net --allow-read --allow-env supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
           sleep 2
       - name: Start functions serve
         run: |
@@ -91,7 +91,7 @@ jobs:
           supabase db reset
       - name: Start mock AccessTrade server
         run: |
-          deno run --allow-net --allow-read supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
+          deno run --allow-net --allow-read --allow-env supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
           sleep 2
       - name: Start functions serve
         run: |
@@ -156,7 +156,7 @@ jobs:
           supabase db reset
       - name: Start mock AccessTrade server
         run: |
-          deno run --allow-net --allow-read supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
+          deno run --allow-net --allow-read --allow-env supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
           sleep 2
       - name: Start functions serve
         run: |

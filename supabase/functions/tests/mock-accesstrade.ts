@@ -103,3 +103,10 @@ export function startMock(o: { port?: number; clock?: () => number } = {}): Mock
   })
   return { url: `http://localhost:${server.addr.port}`, calls, state, close: () => server.shutdown() }
 }
+
+// Standalone entrypoint for CI / manual runs: `deno run --allow-net --allow-read --allow-env mock-accesstrade.ts`
+if (import.meta.main) {
+  const port = Number(Deno.env.get('MOCK_AT_PORT') ?? 8787)
+  startMock({ port })
+  console.log(`mock AccessTrade listening on 0.0.0.0:${port}`)
+}
