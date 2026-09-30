@@ -35,10 +35,6 @@ jobs:
       - name: Reset DB and seed
         run: |
           supabase db reset
-      - name: Start mock AccessTrade server
-        run: |
-          deno run --allow-net --allow-read --allow-env supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
-          sleep 2
       - name: Start functions serve
         run: |
           supabase functions serve --no-verify-jwt --env-file supabase/functions/.env.ci > /tmp/functions.log 2>&1 &
@@ -104,6 +100,7 @@ jobs:
         env:
           WEB_BASE_URL: http://127.0.0.1:3000
           MAILPIT_URL: http://127.0.0.1:54324
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
         run: pnpm --filter ./apps/web exec playwright test
       - name: Upload results
         if: always()
@@ -170,6 +167,7 @@ jobs:
         env:
           WEB_BASE_URL: http://127.0.0.1:3000
           MAILPIT_URL: http://127.0.0.1:54324
+          SUPABASE_URL: http://127.0.0.1:54321
         run: |
           xvfb-run -a pnpm --filter ./apps/extension exec playwright test
       - name: Upload results
