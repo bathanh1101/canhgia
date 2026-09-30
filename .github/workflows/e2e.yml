@@ -81,7 +81,9 @@ jobs:
       - name: Start mock AccessTrade server
         run: |
           deno run --allow-net --allow-read --allow-env supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
-          sleep 2
+          for i in {1..20}; do curl -sf http://127.0.0.1:8787/v1/campaigns >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:8787/v1/campaigns | head -c 200; echo
+          docker run --rm curlimages/curl:8.10.1 -sf http://172.17.0.1:8787/v1/campaigns | head -c 120; echo " <- reachable from a container"
       - name: Start functions serve
         run: |
           supabase functions serve --no-verify-jwt --env-file supabase/functions/.env.ci > /tmp/functions.log 2>&1 &
@@ -142,7 +144,9 @@ jobs:
       - name: Start mock AccessTrade server
         run: |
           deno run --allow-net --allow-read --allow-env supabase/functions/tests/mock-accesstrade.ts > /tmp/mock-at.log 2>&1 &
-          sleep 2
+          for i in {1..20}; do curl -sf http://127.0.0.1:8787/v1/campaigns >/dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:8787/v1/campaigns | head -c 200; echo
+          docker run --rm curlimages/curl:8.10.1 -sf http://172.17.0.1:8787/v1/campaigns | head -c 120; echo " <- reachable from a container"
       - name: Start functions serve
         run: |
           supabase functions serve --no-verify-jwt --env-file supabase/functions/.env.ci > /tmp/functions.log 2>&1 &
@@ -170,6 +174,12 @@ jobs:
           SUPABASE_URL: http://127.0.0.1:54321
         run: |
           xvfb-run -a pnpm --filter ./apps/extension exec playwright test
+      - name: Collect service logs
+        if: always()
+        run: |
+          mkdir -p apps/extension/playwright-report/logs
+          cp /tmp/functions.log /tmp/mock-at.log apps/extension/playwright-report/logs/ 2>/dev/null || true
+          docker logs supabase_edge_runtime_canhgia > apps/extension/playwright-report/logs/edge-runtime.log 2>&1 || true
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
