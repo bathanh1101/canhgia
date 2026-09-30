@@ -1,5 +1,7 @@
 # Deployment guide
 
+Hướng dẫn chi tiết bằng tiếng Việt (chạy local từng app, test/E2E, deploy từng bước): [`run-and-deploy-guide.md`](run-and-deploy-guide.md).
+
 Status: nothing deployed yet. No Supabase cloud project, Vercel, Play/Apple/CWS accounts, domain, Resend, Firebase or Google OAuth clients existed when phase 12 was prepared. Everything below is ready for a human to run. Never commit secrets (`.env*`, keystores, `key.properties`, `env/prod.json` are gitignored).
 
 ## Order (matters)
@@ -26,8 +28,6 @@ Status: nothing deployed yet. No Supabase cloud project, Vercel, Play/Apple/CWS 
 | edge | `ACCESSTRADE_TOKEN, ACCESSTRADE_BASE_URL, CRON_SECRET, FCM_PROJECT_ID, FCM_SERVICE_ACCOUNT_JSON` | `supabase secrets` | see below |
 | vault | `project_url, cron_secret, cccd_pepper` | SQL | see below |
 | auth | `TURNSTILE_SECRET`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID/SECRET` | only for local `config.toml` `env()`; hosted = dashboard | |
-
-Known mismatch: `apps/web/.env.example` still shows `vn.canhgia.canhgia` for `ANDROID_PACKAGE_NAME`/`IOS_BUNDLE_ID`; the real ids are `io.canhgia.app`. Use the real ones (a wrong package makes App Links verification fail silently).
 
 ## 1. Supabase (region ap-southeast-1)
 Free plan is not enough for real users (Edge timeouts, pg_cron/pg_net load): use Pro before launch.
