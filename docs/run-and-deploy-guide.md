@@ -347,6 +347,19 @@ keyPassword=...
 
 Tạo keystore: `keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000`. Backup offline. `APP_LINK_HOST` (host của app link, mặc định `canhgia.vn`) đặt trong `apps/mobile/android/gradle.properties`, hoặc `-PAPP_LINK_HOST=<host>`. Tăng `version:` trong `pubspec.yaml` (`x.y.z+build`, hiện `1.0.0+1`) cho mỗi lần upload.
 
+### 6.x Chạy app mobile trên máy tính (Flutter web, không cần điện thoại)
+
+Dùng để xem UI và test luồng Email OTP nhanh. Các plugin native (sinh trắc học, camera QR, webview Turnstile, FCM) không hoạt động trên web; `env/dev.json` đặt `TURNSTILE_TEST_TOKEN` nên login OTP vẫn chạy.
+
+```bash
+cd apps/mobile
+flutter build web --dart-define-from-file=env/dev.json      # SUPABASE_URL=http://127.0.0.1:54321
+python3 -m http.server 8080 --directory build/web             # mở http://localhost:8080 trên Windows
+# hoặc hot-reload: flutter run -d web-server --web-port 8080 --dart-define-from-file=env/dev.json
+```
+
+Thư mục `apps/mobile/web/` đã có trong repo (tạo bằng `flutter create . --platforms web`).
+
 ## 7. Chạy test và E2E
 
 ### 7.1 Unit/lint/typecheck từng app
