@@ -45,12 +45,10 @@ jobs:
           for i in {1..30}; do curl -s -o /dev/null http://127.0.0.1:54321/functions/v1/resolve-url && break; sleep 1; done
       - name: Run backend integration tests
         run: |
-          deno test supabase/tests/integration/*.test.ts \
-            --allow-net \
-            --allow-env \
-            --allow-read \
-            --env SUPABASE_URL=http://127.0.0.1:54321 \
-            --env CRON_SECRET=test-cron-secret
+          deno test supabase/tests/integration/*.test.ts --allow-net --allow-env --allow-read
+        env:
+          SUPABASE_URL: http://127.0.0.1:54321
+          CRON_SECRET: test-cron-secret
       - name: Cleanup
         if: always()
         run: |
@@ -80,12 +78,7 @@ jobs:
           CRON_SECRET=test-cron-secret
           EOF
       - name: Start Supabase
-        run: |
-          supabase start -x studio,imgproxy > /tmp/supabase.log 2>&1 &
-          for i in {1..30}; do
-            curl -s http://127.0.0.1:54321/rest/v1/ && echo "API ready" && break
-            sleep 1
-          done
+        run: supabase start -x studio,imgproxy
       - name: Reset DB and seed
         run: |
           supabase db reset
@@ -145,12 +138,7 @@ jobs:
           CRON_SECRET=test-cron-secret
           EOF
       - name: Start Supabase
-        run: |
-          supabase start -x studio,imgproxy > /tmp/supabase.log 2>&1 &
-          for i in {1..30}; do
-            curl -s http://127.0.0.1:54321/rest/v1/ && echo "API ready" && break
-            sleep 1
-          done
+        run: supabase start -x studio,imgproxy
       - name: Reset DB and seed
         run: |
           supabase db reset
